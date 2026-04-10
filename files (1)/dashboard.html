@@ -400,7 +400,7 @@
       <div style="margin-bottom:16px"><button class="btn btn-primary" onclick="openIOModal('out')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>출고 등록</button></div>
       <div class="card">
         <div class="card-header"><h3>출고 내역</h3></div>
-        <table><thead><tr><th>일시</th><th>품목</th><th>수량</th><th>증빙</th><th>담당</th><th>비고</th></tr></thead>
+        <table><thead><tr><th>일시</th><th>증빙 사진</th><th>담당</th></tr></thead>
         <tbody id="outTb"></tbody></table>
         <div class="empty" id="outEmpty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 19V5m-7 7l7-7 7 7"/></svg><p>출고 내역이 없습니다</p></div>
       </div>
@@ -454,9 +454,12 @@
     <div class="modal-head"><h3 id="ioModalTitle">입고 등록</h3><button class="modal-close" onclick="closeIOModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="modal-body">
       <input type="hidden" id="ioType">
-      <div class="form-group"><label>품목 선택 *</label><select id="ioItem"></select></div>
-      <div class="form-group"><label>수량 *</label><input type="number" id="ioQty" min="1" placeholder="0"></div>
-      <div class="form-group"><label>비고</label><input type="text" id="ioNote" placeholder="사유 또는 메모"></div>
+      <!-- 입고 전용 필드 (출고 시 숨김) -->
+      <div id="ioFields">
+        <div class="form-group"><label>품목 선택 *</label><select id="ioItem"></select></div>
+        <div class="form-group"><label>수량 *</label><input type="number" id="ioQty" min="1" placeholder="0"></div>
+        <div class="form-group"><label>비고</label><input type="text" id="ioNote" placeholder="사유 또는 메모"></div>
+      </div>
 
       <!-- ★ 출고 사진 업로드 (출고일 때만 표시) -->
       <div class="form-group" id="photoGroup" style="display:none">
@@ -563,10 +566,10 @@ function renderDash(){
   em.style.display='none';
   tb.innerHTML=recent.map(l=>`<tr>
     <td class="mono" style="font-size:12px">${l.date}</td>
-    <td><span class="item-name">${l.itemName}</span></td>
+    <td><span class="item-name">${l.itemName||(l.type==='out'?'출고 증빙':'-')}</span></td>
     <td><span class="badge-status ${l.type==='in'?'badge-in':'badge-outgo'}">${l.type==='in'?'입고':'출고'}</span></td>
-    <td class="mono" style="font-weight:600;color:${l.type==='in'?'var(--success)':'var(--danger)'}">${l.type==='in'?'+':'-'}${l.qty}</td>
-    <td style="color:var(--text-muted)">${l.note||'-'}</td></tr>`).join('');
+    <td class="mono" style="font-weight:600;color:${l.type==='in'?'var(--success)':'var(--danger)'}">${l.type==='in'?'+'+l.qty:(l.photo?'사진':'-')}</td>
+    <td style="color:var(--text-muted)">${l.note||l.user||'-'}</td></tr>`).join('');
 }
 
 // ═══════════════════════════════
@@ -662,7 +665,8 @@ function openIOModal(type){
   document.getElementById('ioType').value=type;
   document.getElementById('ioModalTitle').textContent=type==='in'?'입고 등록':'출고 등록';
   document.getElementById('ioQty').value='';document.getElementById('ioNote').value='';
-  // ★ 출고일 때만 사진 업로드 UI 표시
+  // ★ 출고: 품목/수량/비고 숨기고 사진만 표시
+  document.getElementById('ioFields').style.display = type==='out' ? 'none' : 'block';
   document.getElementById('photoGroup').style.display = type==='out' ? 'block' : 'none';
   removePhoto();
   const sel=document.getElementById('ioItem'),items=g(K.items);
@@ -671,19 +675,42 @@ function openIOModal(type){
 }
 function closeIOModal(){document.getElementById('ioModal').classList.remove('show');}
 function saveIO(){
-  const type=document.getElementById('ioType').value,itemId=document.getElementById('ioItem').value,qty=parseInt(document.getElementById('ioQty').value)||0,note=document.getElementById('ioNote').value.trim();
+  const type=document.getElementById('ioType').value;
+
+  // ★ 출고: 사진만 저장 (재고 차감 없음)
+  if(type==='out'){
+    if(!currentPhoto){toast('출고 증빙 사진을 첨부해주세요','err');return;}
+    const logs=g(K.logs);
+    logs.push({
+      id:'l_'+Date.now(),
+      type:'out',
+      date:new Date().toLocaleString('ko-KR'),
+      user:session.name,
+      photo:currentPhoto
+    });
+    sv(K.logs,logs);
+    toast('출고가 등록되었습니다','ok');
+    closeIOModal();
+    renderDash();
+    renderLogs('out');
+    return;
+  }
+
+  // 입고: 기존 로직 (품목 선택 + 수량 + 재고 증가)
+  const itemId=document.getElementById('ioItem').value;
+  const qty=parseInt(document.getElementById('ioQty').value)||0;
+  const note=document.getElementById('ioNote').value.trim();
   if(!itemId){toast('품목을 선택해주세요','err');return;}
   if(qty<=0){toast('수량을 입력해주세요','err');return;}
-  // ★ 출고는 사진 필수
-  if(type==='out' && !currentPhoto){toast('출고 증빙 사진을 첨부해주세요','err');return;}
   const items=g(K.items),idx=items.findIndex(i=>i.id===itemId);if(idx<0)return;
-  if(type==='out'&&items[idx].qty<qty){toast('재고가 부족합니다','err');return;}
-  items[idx].qty+=(type==='in'?qty:-qty);items[idx].updated=new Date().toISOString();
+  items[idx].qty+=qty;
+  items[idx].updated=new Date().toISOString();
   sv(K.items,items);
-  const logs=g(K.logs);logs.push({id:'l_'+Date.now(),itemId,itemName:items[idx].name,type,qty,note,date:new Date().toLocaleString('ko-KR'),user:session.name,photo:currentPhoto});
+  const logs=g(K.logs);
+  logs.push({id:'l_'+Date.now(),itemId,itemName:items[idx].name,type:'in',qty,note,date:new Date().toLocaleString('ko-KR'),user:session.name});
   sv(K.logs,logs);
-  toast(type==='in'?'입고 처리되었습니다':'출고 처리되었습니다','ok');
-  closeIOModal();renderDash();renderInv();renderLogs(type);
+  toast('입고 처리되었습니다','ok');
+  closeIOModal();renderDash();renderInv();renderLogs('in');
 }
 function renderLogs(type){
   const logs=g(K.logs).filter(l=>l.type===type).reverse();
@@ -692,14 +719,11 @@ function renderLogs(type){
   if(!logs.length){tb.innerHTML='';em.style.display='';return;}
   em.style.display='none';
   if(type==='out'){
-    // 출고: 증빙 사진 + 담당자 포함
+    // 출고: 사진만 표시
     tb.innerHTML=logs.map(l=>`<tr>
       <td class="mono" style="font-size:12px">${l.date}</td>
-      <td><span class="item-name">${l.itemName}</span></td>
-      <td class="mono" style="font-weight:600;color:var(--danger)">-${l.qty}</td>
-      <td>${l.photo?`<img src="${l.photo}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer" onclick="viewPhoto('${l.id}')">`:'<span style="color:var(--text-muted);font-size:11px">없음</span>'}</td>
-      <td style="color:var(--text-muted);font-size:12px">${l.user||'-'}</td>
-      <td style="color:var(--text-muted)">${l.note||'-'}</td></tr>`).join('');
+      <td>${l.photo?`<img src="${l.photo}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer" onclick="viewPhoto('${l.id}')">`:'<span style="color:var(--text-muted);font-size:11px">없음</span>'}</td>
+      <td style="color:var(--text-muted);font-size:12px">${l.user||'-'}</td></tr>`).join('');
   } else {
     tb.innerHTML=logs.map(l=>`<tr>
       <td class="mono" style="font-size:12px">${l.date}</td>
