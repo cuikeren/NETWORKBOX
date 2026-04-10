@@ -6,6 +6,20 @@
   <title>OSSTEM 재고관리</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    // ★ 최우선 인증 체크 — DOM 렌더링 전에 실행
+    (function(){
+      var raw = localStorage.getItem('inv_session');
+      if(!raw){ location.replace('index.html'); return; }
+      try{
+        var s = JSON.parse(raw);
+        if(!s || !s.pin){ throw 0; }
+      }catch(e){
+        localStorage.removeItem('inv_session');
+        location.replace('index.html');
+      }
+    })();
+  </script>
   <style>
     :root {
       --bg-deep: #0a0a0c;
@@ -31,6 +45,9 @@
     }
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Noto Sans KR',sans-serif; background:var(--bg-deep); color:var(--text-primary); min-height:100vh; overflow-x:hidden; }
+    /* ★ 인증 전 화면 숨김 */
+    .app-wrap { opacity:0; transition:opacity .3s; }
+    .app-wrap.ready { opacity:1; }
 
     /* ── Sidebar ── */
     .sidebar {
@@ -51,9 +68,23 @@
     .nav-item.active { background:var(--accent-dim); color:var(--accent); font-weight:500; }
     .nav-item svg { width:18px; height:18px; flex-shrink:0; }
     .nav-item .badge { margin-left:auto; background:var(--danger); color:#fff; font-size:10px; font-weight:600; padding:1px 7px; border-radius:10px; font-family:'JetBrains Mono',monospace; }
-    .side-footer { padding:12px 16px; border-top:1px solid var(--border); }
+
+    /* ── Sidebar user info ── */
+    .side-user {
+      padding:14px 16px; border-top:1px solid var(--border);
+      display:flex; align-items:center; gap:10px;
+    }
+    .side-user-avatar {
+      width:34px; height:34px; border-radius:10px; background:var(--accent-dim);
+      border:1px solid rgba(244,121,32,0.2);
+      display:flex; align-items:center; justify-content:center; flex-shrink:0;
+      color:var(--accent); font-size:14px; font-weight:700; font-family:'JetBrains Mono',monospace;
+    }
+    .side-user-info { flex:1; min-width:0; }
+    .side-user-name { font-size:13px; font-weight:600; color:var(--text-primary); }
+    .side-user-time { font-size:10px; color:var(--text-muted); font-family:'JetBrains Mono',monospace; margin-top:1px; }
     .btn-logout {
-      width:100%; padding:8px; background:transparent; border:1px solid var(--border); border-radius:8px;
+      width:100%; padding:8px; margin-top:10px; background:transparent; border:1px solid var(--border); border-radius:8px;
       color:var(--text-secondary); font-size:12px; font-family:'Noto Sans KR',sans-serif; cursor:pointer; transition:all .15s;
     }
     .btn-logout:hover { border-color:var(--danger); color:var(--danger); }
@@ -66,9 +97,16 @@
       display:flex; align-items:center; justify-content:space-between;
     }
     .topbar h2 { font-size:18px; font-weight:700; }
-    .topbar-right { display:flex; align-items:center; gap:12px; }
-    .user-tag { font-size:12px; color:var(--text-muted); font-family:'JetBrains Mono',monospace; }
-    .user-tag strong { color:var(--accent); }
+    .topbar-right { display:flex; align-items:center; gap:10px; }
+    .topbar-user {
+      display:flex; align-items:center; gap:8px; padding:5px 14px 5px 8px;
+      background:var(--accent-dim); border:1px solid rgba(244,121,32,0.15); border-radius:20px;
+    }
+    .topbar-dot {
+      width:8px; height:8px; border-radius:50%; background:var(--success);
+      box-shadow:0 0 6px rgba(52,211,153,0.5);
+    }
+    .topbar-user span { font-size:12px; font-weight:500; color:var(--accent); }
 
     .content { padding:24px 28px; }
 
@@ -81,7 +119,6 @@
     .stat-label { font-size:11px; color:var(--text-muted); font-weight:500; margin-bottom:6px; }
     .stat-value { font-size:26px; font-weight:700; font-family:'JetBrains Mono',monospace; letter-spacing:-1px; }
     .stat-sub { font-size:11px; color:var(--text-muted); margin-top:4px; font-family:'JetBrains Mono',monospace; }
-    .stat-sub.up { color:var(--success); }
     .stat-sub.warn { color:var(--warning); }
     .stat-sub.down { color:var(--danger); }
 
@@ -89,13 +126,10 @@
     .card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:20px; }
     .card-header { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--border); }
     .card-header h3 { font-size:14px; font-weight:600; }
-    .card-actions { display:flex; gap:8px; }
-
     table { width:100%; border-collapse:collapse; }
     thead th {
       text-align:left; padding:10px 20px; font-size:11px; font-weight:600;
-      color:var(--text-muted); text-transform:uppercase; letter-spacing:.6px; border-bottom:1px solid var(--border);
-      white-space:nowrap;
+      color:var(--text-muted); text-transform:uppercase; letter-spacing:.6px; border-bottom:1px solid var(--border); white-space:nowrap;
     }
     tbody tr { border-bottom:1px solid var(--border); transition:background .1s; }
     tbody tr:last-child { border-bottom:none; }
@@ -105,10 +139,7 @@
     .item-code { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-muted); margin-top:1px; }
     .mono { font-family:'JetBrains Mono',monospace; }
 
-    .badge-status {
-      display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600;
-      font-family:'JetBrains Mono',monospace;
-    }
+    .badge-status { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; font-family:'JetBrains Mono',monospace; }
     .badge-normal { background:var(--success-dim); color:var(--success); }
     .badge-low { background:var(--warning-dim); color:var(--warning); }
     .badge-out { background:var(--danger-dim); color:var(--danger); }
@@ -180,8 +211,7 @@
     .form-group label { display:block; font-size:12px; font-weight:500; color:var(--text-secondary); margin-bottom:6px; }
     .form-group input, .form-group select, .form-group textarea {
       width:100%; padding:10px 12px; background:var(--bg-input); border:1px solid var(--border);
-      border-radius:8px; color:var(--text-primary); font-size:13px; font-family:'Noto Sans KR',sans-serif;
-      outline:none; transition:border-color .2s;
+      border-radius:8px; color:var(--text-primary); font-size:13px; font-family:'Noto Sans KR',sans-serif; outline:none; transition:border-color .2s;
     }
     .form-group input:focus, .form-group select:focus { border-color:var(--accent); }
     .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
@@ -213,12 +243,9 @@
     .cat-list { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
     .cat-tag {
       display:inline-flex; align-items:center; gap:6px; padding:6px 14px;
-      background:var(--bg-input); border:1px solid var(--border); border-radius:20px;
-      font-size:12px; color:var(--text-secondary);
+      background:var(--bg-input); border:1px solid var(--border); border-radius:20px; font-size:12px; color:var(--text-secondary);
     }
-    .cat-tag button {
-      background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:14px; line-height:1;
-    }
+    .cat-tag button { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:14px; line-height:1; }
     .cat-tag button:hover { color:var(--danger); }
 
     /* ── Mobile ── */
@@ -245,6 +272,8 @@
   </style>
 </head>
 <body>
+
+<div class="app-wrap" id="appWrap">
 
 <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -281,8 +310,19 @@
       설정
     </div>
   </nav>
-  <div class="side-footer">
-    <button class="btn-logout" onclick="logout()">로그아웃</button>
+
+  <!-- ★ 사이드바 하단 사용자 정보 -->
+  <div class="side-user">
+    <div style="width:100%">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div class="side-user-avatar" id="userAvatar"></div>
+        <div class="side-user-info">
+          <div class="side-user-name" id="sideUserName"></div>
+          <div class="side-user-time" id="sideLoginTime"></div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="logout()">로그아웃</button>
+    </div>
   </div>
 </aside>
 
@@ -291,7 +331,11 @@
   <div class="topbar">
     <h2 id="pageTitle">대시보드</h2>
     <div class="topbar-right">
-      <span class="user-tag"><strong id="userName"></strong>님</span>
+      <!-- ★ 상단바 접속자 표시 -->
+      <div class="topbar-user">
+        <div class="topbar-dot"></div>
+        <span id="topUserName"></span>
+      </div>
     </div>
   </div>
 
@@ -320,7 +364,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" placeholder="품목명, 코드 검색..." id="invSearch" oninput="renderInv()">
         </div>
-        <div class="card-actions" id="filterChips">
+        <div style="display:flex;gap:6px">
           <button class="filter-chip active" data-f="all" onclick="setF('all')">전체</button>
           <button class="filter-chip" data-f="normal" onclick="setF('normal')">정상</button>
           <button class="filter-chip" data-f="low" onclick="setF('low')">부족</button>
@@ -382,7 +426,9 @@
   </div>
 </div>
 
-<!-- ═══ 품목 추가/수정 Modal ═══ -->
+</div><!-- /app-wrap -->
+
+<!-- ═══ 품목 Modal ═══ -->
 <div class="modal-overlay" id="itemModal">
   <div class="modal">
     <div class="modal-head"><h3 id="itemModalTitle">품목 추가</h3><button class="modal-close" onclick="closeItemModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
@@ -419,20 +465,47 @@
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script>
-// ═══ Storage ═══
-const K = { items:'inv_items', logs:'inv_logs', cats:'inv_cats' };
+// ═══════════════════════════════
+// ★ 인증 (2차 확인 + UI 세팅)
+// ═══════════════════════════════
 const SESSION = 'inv_session';
-const g = k => { try{return JSON.parse(localStorage.getItem(k))||[]}catch{return[]} };
-const s = (k,v) => localStorage.setItem(k,JSON.stringify(v));
-if(!localStorage.getItem(K.cats)) s(K.cats,['Implant','Abutment','Prosthetic','Instrument','소모품','기타']);
-
-// ═══ Auth ═══
 let session;
-try{ session=JSON.parse(localStorage.getItem(SESSION)); if(!session||!session.pin) throw 0; }catch{ location.href='index.html'; }
-document.getElementById('userName').textContent=session.name;
-function logout(){ localStorage.removeItem(SESSION); location.href='index.html'; }
+try {
+  session = JSON.parse(localStorage.getItem(SESSION));
+  if (!session || !session.pin) throw 0;
+} catch {
+  localStorage.removeItem(SESSION);
+  location.replace('index.html');
+}
 
-// ═══ Navigation ═══
+// ★ 인증 통과 → 화면 표시 + 사용자 정보 세팅
+document.getElementById('appWrap').classList.add('ready');
+
+// 상단바 사용자명
+document.getElementById('topUserName').textContent = session.name + ' 접속중';
+
+// 사이드바 사용자 정보
+document.getElementById('userAvatar').textContent = session.name.charAt(0);
+document.getElementById('sideUserName').textContent = session.name;
+document.getElementById('sideLoginTime').textContent =
+  new Date(session.loginAt).toLocaleString('ko-KR', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) + ' 로그인';
+
+function logout() {
+  localStorage.removeItem(SESSION);
+  location.replace('index.html');
+}
+
+// ═══════════════════════════════
+// Storage
+// ═══════════════════════════════
+const K = { items:'inv_items', logs:'inv_logs', cats:'inv_cats' };
+const g = k => { try{return JSON.parse(localStorage.getItem(k))||[]}catch{return[]} };
+const sv = (k,v) => localStorage.setItem(k,JSON.stringify(v));
+if(!localStorage.getItem(K.cats)) sv(K.cats,['Implant','Abutment','Prosthetic','Instrument','소모품','기타']);
+
+// ═══════════════════════════════
+// Navigation
+// ═══════════════════════════════
 let curPage='dashboard', curFilter='all';
 const titles={dashboard:'대시보드',inventory:'재고 현황',stockin:'입고 관리',stockout:'출고 관리',settings:'설정'};
 function go(p){
@@ -449,7 +522,9 @@ function go(p){
   if(p==='settings') renderCats();
 }
 
-// ═══ Dashboard ═══
+// ═══════════════════════════════
+// Dashboard
+// ═══════════════════════════════
 function renderDash(){
   const items=g(K.items), logs=g(K.logs);
   document.getElementById('sTotal').textContent=items.length;
@@ -460,8 +535,7 @@ function renderDash(){
   document.getElementById('sOut').textContent=out;
   document.getElementById('badgeLow').textContent=low+out;
   const recent=logs.slice(-8).reverse();
-  const tb=document.getElementById('recentTb');
-  const em=document.getElementById('recentEmpty');
+  const tb=document.getElementById('recentTb'), em=document.getElementById('recentEmpty');
   if(!recent.length){tb.innerHTML='';em.style.display='';return;}
   em.style.display='none';
   tb.innerHTML=recent.map(l=>`<tr>
@@ -472,7 +546,9 @@ function renderDash(){
     <td style="color:var(--text-muted)">${l.note||'-'}</td></tr>`).join('');
 }
 
-// ═══ Inventory ═══
+// ═══════════════════════════════
+// Inventory
+// ═══════════════════════════════
 function status(i){if(i.qty===0)return'out';if(i.qty<=(i.min||0))return'low';return'normal';}
 function renderInv(){
   let items=g(K.items);
@@ -497,7 +573,9 @@ function renderInv(){
 }
 function setF(f){curFilter=f;document.querySelectorAll('.filter-chip').forEach(c=>c.classList.toggle('active',c.dataset.f===f));renderInv();}
 
-// ═══ Item CRUD ═══
+// ═══════════════════════════════
+// Item CRUD
+// ═══════════════════════════════
 function openItemModal(id){
   document.getElementById('editId').value=id||'';
   document.getElementById('itemModalTitle').textContent=id?'품목 수정':'품목 추가';
@@ -515,12 +593,14 @@ function saveItem(){
   const d={name,code:document.getElementById('fCode').value.trim(),cat:document.getElementById('fCat').value,qty,min:parseInt(document.getElementById('fMin').value)||0,loc:document.getElementById('fLoc').value.trim(),note:document.getElementById('fNote').value.trim(),updated:new Date().toISOString()};
   if(eid){const idx=items.findIndex(i=>i.id===eid);if(idx>=0)items[idx]={...items[idx],...d};toast('품목이 수정되었습니다','ok');}
   else{d.id='i_'+Date.now();d.created=new Date().toISOString();items.push(d);toast('품목이 추가되었습니다','ok');}
-  s(K.items,items);closeItemModal();renderInv();renderDash();
+  sv(K.items,items);closeItemModal();renderInv();renderDash();
 }
 function editItem(id){openItemModal(id);}
-function delItem(id){if(!confirm('삭제하시겠습니까?'))return;s(K.items,g(K.items).filter(i=>i.id!==id));toast('삭제되었습니다','ok');renderInv();renderDash();}
+function delItem(id){if(!confirm('삭제하시겠습니까?'))return;sv(K.items,g(K.items).filter(i=>i.id!==id));toast('삭제되었습니다','ok');renderInv();renderDash();}
 
-// ═══ In/Out ═══
+// ═══════════════════════════════
+// In/Out
+// ═══════════════════════════════
 function openIOModal(type){
   document.getElementById('ioType').value=type;
   document.getElementById('ioModalTitle').textContent=type==='in'?'입고 등록':'출고 등록';
@@ -537,9 +617,9 @@ function saveIO(){
   const items=g(K.items),idx=items.findIndex(i=>i.id===itemId);if(idx<0)return;
   if(type==='out'&&items[idx].qty<qty){toast('재고가 부족합니다','err');return;}
   items[idx].qty+=(type==='in'?qty:-qty);items[idx].updated=new Date().toISOString();
-  s(K.items,items);
-  const logs=g(K.logs);logs.push({id:'l_'+Date.now(),itemId,itemName:items[idx].name,type,qty,note,date:new Date().toLocaleString('ko-KR')});
-  s(K.logs,logs);
+  sv(K.items,items);
+  const logs=g(K.logs);logs.push({id:'l_'+Date.now(),itemId,itemName:items[idx].name,type,qty,note,date:new Date().toLocaleString('ko-KR'),user:session.name});
+  sv(K.logs,logs);
   toast(type==='in'?'입고 처리되었습니다':'출고 처리되었습니다','ok');
   closeIOModal();renderDash();renderInv();renderLogs(type);
 }
@@ -556,7 +636,9 @@ function renderLogs(type){
     <td style="color:var(--text-muted)">${l.note||'-'}</td></tr>`).join('');
 }
 
-// ═══ Settings ═══
+// ═══════════════════════════════
+// Settings
+// ═══════════════════════════════
 function renderCats(){
   const cats=g(K.cats);
   document.getElementById('catList').innerHTML=cats.map((c,i)=>`<span class="cat-tag">${c}<button onclick="delCat(${i})">&times;</button></span>`).join('');
@@ -564,18 +646,22 @@ function renderCats(){
 function addCat(){
   const v=document.getElementById('newCat').value.trim();if(!v)return;
   const cats=g(K.cats);if(cats.includes(v)){toast('이미 존재합니다','err');return;}
-  cats.push(v);s(K.cats,cats);document.getElementById('newCat').value='';toast('추가되었습니다','ok');renderCats();
+  cats.push(v);sv(K.cats,cats);document.getElementById('newCat').value='';toast('추가되었습니다','ok');renderCats();
 }
-function delCat(i){const cats=g(K.cats);cats.splice(i,1);s(K.cats,cats);toast('삭제되었습니다','ok');renderCats();}
+function delCat(i){const cats=g(K.cats);cats.splice(i,1);sv(K.cats,cats);toast('삭제되었습니다','ok');renderCats();}
 function fillCatSelect(id){const cats=g(K.cats),el=document.getElementById(id);el.innerHTML='<option value="">— 선택 —</option>'+cats.map(c=>`<option value="${c}">${c}</option>`).join('');}
 function resetData(){if(!confirm('모든 데이터가 삭제됩니다. 계속하시겠습니까?'))return;localStorage.removeItem(K.items);localStorage.removeItem(K.logs);toast('초기화 완료','ok');renderDash();renderInv();}
 
-// ═══ Toast ═══
+// ═══════════════════════════════
+// Toast
+// ═══════════════════════════════
 function toast(m,t='ok'){const w=document.getElementById('toastWrap'),el=document.createElement('div');el.className=`toast ${t}`;
 el.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">${t==='ok'?'<path d="M20 6L9 17l-5-5"/>':'<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'}</svg>${m}`;
 w.appendChild(el);setTimeout(()=>el.remove(),3000);}
 
-// ═══ Init ═══
+// ═══════════════════════════════
+// Init
+// ═══════════════════════════════
 renderDash();
 </script>
 </body>

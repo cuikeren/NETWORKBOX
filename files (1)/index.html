@@ -329,13 +329,9 @@
     };
     const SESSION_KEY = 'inv_session';
 
-    // 이미 로그인 상태면 대시보드로
-    (function checkSession() {
-      try {
-        const s = JSON.parse(localStorage.getItem(SESSION_KEY));
-        if (s && s.pin) window.location.href = 'dashboard.html';
-      } catch {}
-    })();
+    // ★ 로그인 페이지 진입 시 기존 세션 무조건 초기화
+    // (자동 로그인 방지 — 항상 비밀번호 재입력 필요)
+    localStorage.removeItem(SESSION_KEY);
 
     document.getElementById('userPw').addEventListener('input', function() {
       this.value = this.value.replace(/\D/g, '').slice(0, 4);
