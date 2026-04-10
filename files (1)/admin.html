@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OSSTEM 재고관리 — 관리자</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script>
+    // ★ 관리자 인증 체크
+    (function(){
+      var SESSION_TIMEOUT = 30 * 60 * 1000;
+      var raw = localStorage.getItem('inv_session');
+      if(!raw){ location.replace('index.html'); return; }
+      try{
+        var s = JSON.parse(raw);
+        if(!s || !s.pin || !s.loginAt){ throw 0; }
+        if(s.role !== 'admin'){
+          alert('관리자 권한이 필요합니다.');
+          location.replace('dashboard.html');
+          return;
+        }
+        var elapsed = Date.now() - new Date(s.loginAt).getTime();
+        if(elapsed >= SESSION_TIMEOUT){
+          localStorage.removeItem('inv_session');
+          alert('세션이 만료되었습니다.');
+          location.replace('index.html');
+        }
+      }catch(e){
+        localStorage.removeItem('inv_session');
+        location.replace('index.html');
+      }
+    })();
+  </script>
+  <style>
+    :root {
+      --bg-deep:#0a0a0c; --bg-side:#121215; --bg-card:#1a1a1f; --bg-input:#212127; --bg-hover:#26262d;
+      --accent:#f47920; --accent-dim:rgba(244,121,32,0.08); --accent-hover:#ff8f3f;
+      --success:#34d399; --success-dim:rgba(52,211,153,0.10);
+      --warning:#fbbf24; --warning-dim:rgba(251,191,36,0.10);
+      --danger:#ef4444; --danger-dim:rgba(239,68,68,0.10);
+      --text-primary:#e8e6e3; --text-secondary:#9b978f; --text-muted:#5a5750;
+      --border:#2a2924; --border-light:#353530;
+      --admin:#a855f7; --admin-dim:rgba(168,85,247,0.12);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Noto Sans KR',sans-serif; background:var(--bg-deep); color:var(--text-primary); min-height:100vh; }
+    .app-wrap { opacity:0; transition:opacity .3s; }
+    .app-wrap.ready { opacity:1; }
+
+    .sidebar { position:fixed; left:0; top:0; width:220px; height:100vh; background:var(--bg-side); border-right:1px solid var(--border); display:flex; flex-direction:column; z-index:100; transition:transform .3s; }
+    .side-header { padding:20px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; }
+    .side-header img { height:28px; }
+    .side-header span { font-size:14px; font-weight:600; }
+    .admin-tag { background:var(--admin-dim); color:var(--admin); font-size:10px; font-weight:600; padding:2px 8px; border-radius:4px; border:1px solid rgba(168,85,247,0.25); }
+    .side-nav { padding:12px 8px; flex:1; }
+    .nav-label { font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; padding:8px 10px 4px; }
+    .nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; cursor:pointer; color:var(--text-secondary); font-size:13px; transition:all .12s; margin-bottom:2px; }
+    .nav-item:hover { background:var(--bg-hover); color:var(--text-primary); }
+    .nav-item.active { background:var(--accent-dim); color:var(--accent); font-weight:500; }
+    .nav-item svg { width:18px; height:18px; flex-shrink:0; }
+    .side-user { padding:14px 16px; border-top:1px solid var(--border); }
+    .side-user-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+    .side-user-avatar { width:34px; height:34px; border-radius:10px; background:var(--admin-dim); border:1px solid rgba(168,85,247,0.2); display:flex; align-items:center; justify-content:center; color:var(--admin); font-size:14px; font-weight:700; }
+    .side-user-name { font-size:13px; font-weight:600; color:var(--text-primary); }
+    .side-user-time { font-size:10px; color:var(--text-muted); font-family:'JetBrains Mono',monospace; margin-top:1px; }
+    .btn-logout { width:100%; padding:8px; background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--text-secondary); font-size:12px; font-family:'Noto Sans KR',sans-serif; cursor:pointer; transition:all .15s; }
+    .btn-logout:hover { border-color:var(--danger); color:var(--danger); }
+
+    .main { margin-left:220px; min-height:100vh; }
+    .topbar { position:sticky; top:0; z-index:50; padding:16px 28px; background:rgba(10,10,12,0.85); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+    .topbar h2 { font-size:18px; font-weight:700; }
+    .topbar-user { display:flex; align-items:center; gap:8px; padding:5px 14px 5px 8px; background:var(--admin-dim); border:1px solid rgba(168,85,247,0.15); border-radius:20px; }
+    .topbar-dot { width:8px; height:8px; border-radius:50%; background:var(--admin); box-shadow:0 0 6px rgba(168,85,247,0.5); }
+    .topbar-user span { font-size:12px; font-weight:500; color:var(--admin); }
+    .content { padding:24px 28px; }
+
+    .card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:20px; }
+    .card-header { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--border); }
+    .card-header h3 { font-size:14px; font-weight:600; }
+
+    table { width:100%; border-collapse:collapse; }
+    thead th { text-align:left; padding:10px 20px; font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.6px; border-bottom:1px solid var(--border); white-space:nowrap; }
+    tbody tr { border-bottom:1px solid var(--border); transition:background .1s; }
+    tbody tr:last-child { border-bottom:none; }
+    tbody tr:hover { background:var(--bg-hover); }
+    tbody td { padding:12px 20px; font-size:13px; color:var(--text-secondary); white-space:nowrap; }
+    .item-name { color:var(--text-primary); font-weight:500; }
+    .item-code { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-muted); margin-top:1px; }
+    .mono { font-family:'JetBrains Mono',monospace; }
+
+    .badge-status { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; font-family:'JetBrains Mono',monospace; }
+    .badge-normal { background:var(--success-dim); color:var(--success); }
+    .badge-low { background:var(--warning-dim); color:var(--warning); }
+    .badge-out { background:var(--danger-dim); color:var(--danger); }
+
+    .action-btn { width:30px; height:30px; border-radius:6px; border:none; background:transparent; color:var(--text-muted); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all .12s; }
+    .action-btn:hover { background:var(--bg-hover); color:var(--text-primary); }
+    .action-btn.del:hover { background:var(--danger-dim); color:var(--danger); }
+    .action-btn svg { width:15px; height:15px; }
+
+    .btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; border:none; cursor:pointer; font-size:13px; font-weight:500; font-family:'Noto Sans KR',sans-serif; transition:all .12s; }
+    .btn svg { width:15px; height:15px; }
+    .btn-primary { background:var(--accent); color:#fff; }
+    .btn-primary:hover { background:var(--accent-hover); }
+    .btn-outline { background:transparent; color:var(--text-secondary); border:1px solid var(--border); }
+    .btn-outline:hover { border-color:var(--border-light); color:var(--text-primary); background:var(--bg-hover); }
+    .btn-sm { padding:5px 10px; font-size:12px; }
+
+    .search-box { display:flex; align-items:center; background:var(--bg-input); border:1px solid var(--border); border-radius:8px; padding:0 12px; transition:border-color .2s; }
+    .search-box:focus-within { border-color:var(--accent); }
+    .search-box svg { width:15px; height:15px; color:var(--text-muted); }
+    .search-box input { background:transparent; border:none; outline:none; color:var(--text-primary); font-size:13px; font-family:'Noto Sans KR',sans-serif; padding:8px; width:200px; }
+    .search-box input::placeholder { color:var(--text-muted); }
+
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:200; align-items:center; justify-content:center; }
+    .modal-overlay.show { display:flex; }
+    .modal { background:var(--bg-side); border:1px solid var(--border); border-radius:14px; width:460px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.5); animation:modalIn .2s ease; }
+    @keyframes modalIn { from{opacity:0;transform:translateY(10px) scale(.97)} to{opacity:1;transform:none} }
+    .modal-head { display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--border); }
+    .modal-head h3 { font-size:15px; font-weight:600; }
+    .modal-close { width:30px; height:30px; border-radius:8px; border:none; background:transparent; color:var(--text-muted); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    .modal-close:hover { background:var(--bg-hover); color:var(--text-primary); }
+    .modal-body { padding:22px; }
+    .modal-foot { display:flex; justify-content:flex-end; gap:8px; padding:14px 22px; border-top:1px solid var(--border); }
+    .form-group { margin-bottom:16px; }
+    .form-group label { display:block; font-size:12px; font-weight:500; color:var(--text-secondary); margin-bottom:6px; }
+    .form-group input, .form-group select, .form-group textarea { width:100%; padding:10px 12px; background:var(--bg-input); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); font-size:13px; font-family:'Noto Sans KR',sans-serif; outline:none; }
+    .form-group input:focus, .form-group select:focus { border-color:var(--accent); }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+    .empty { text-align:center; padding:48px 20px; color:var(--text-muted); }
+    .empty svg { width:40px; height:40px; margin-bottom:12px; opacity:.4; }
+    .empty p { font-size:13px; }
+
+    .toast-wrap { position:fixed; top:16px; right:16px; z-index:300; display:flex; flex-direction:column; gap:8px; }
+    .toast { background:var(--bg-side); border:1px solid var(--border); border-radius:10px; padding:10px 16px; font-size:13px; box-shadow:0 8px 30px rgba(0,0,0,.4); display:flex; align-items:center; gap:8px; animation:tIn .2s, tOut .2s 2.5s forwards; }
+    .toast.ok { border-left:3px solid var(--success); }
+    .toast.err { border-left:3px solid var(--danger); }
+    @keyframes tIn { from{opacity:0;transform:translateX(16px)} to{opacity:1} }
+    @keyframes tOut { to{opacity:0} }
+
+    .page { display:none; }
+    .page.active { display:block; }
+
+    .setting-section { margin-bottom:28px; background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:20px; }
+    .setting-section h3 { font-size:14px; font-weight:600; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+    .cat-list { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+    .cat-tag { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; background:var(--bg-input); border:1px solid var(--border); border-radius:20px; font-size:12px; color:var(--text-secondary); }
+    .cat-tag button { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:14px; }
+    .cat-tag button:hover { color:var(--danger); }
+
+    .user-row { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:var(--bg-input); border:1px solid var(--border); border-radius:8px; margin-bottom:6px; }
+    .user-row-info { display:flex; align-items:center; gap:12px; }
+    .user-row-pin { font-family:'JetBrains Mono',monospace; color:var(--accent); font-weight:600; font-size:14px; letter-spacing:2px; background:var(--accent-dim); padding:4px 10px; border-radius:6px; }
+    .user-row-name { font-size:13px; color:var(--text-primary); }
+
+    ::-webkit-scrollbar { width:5px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+  </style>
+</head>
+<body>
+
+<div class="app-wrap" id="appWrap">
+
+<aside class="sidebar">
+  <div class="side-header">
+    <img src="logo.png" alt="OSSTEM">
+    <span>재고관리</span>
+    <span class="admin-tag">ADMIN</span>
+  </div>
+  <nav class="side-nav">
+    <div class="nav-label">관리 메뉴</div>
+    <div class="nav-item active" data-page="items" onclick="go('items')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+      재고 관리
+    </div>
+    <div class="nav-item" data-page="history" onclick="go('history')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+      출고 이력
+    </div>
+    <div class="nav-item" data-page="settings" onclick="go('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      시스템 설정
+    </div>
+  </nav>
+  <div class="side-user">
+    <div class="side-user-row">
+      <div class="side-user-avatar" id="userAvatar"></div>
+      <div>
+        <div class="side-user-name" id="sideUserName"></div>
+        <div class="side-user-time" id="sessionTimer"></div>
+      </div>
+    </div>
+    <button class="btn-logout" onclick="logout()">로그아웃</button>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <h2 id="pageTitle">재고 관리</h2>
+    <div class="topbar-user">
+      <div class="topbar-dot"></div>
+      <span id="topUserName"></span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ 재고 관리 ══ -->
+    <div class="page active" id="pg-items">
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" placeholder="품목명, 코드 검색..." id="invSearch" oninput="renderItems()">
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn btn-outline" onclick="downloadTemplate()">양식 다운로드</button>
+          <button class="btn btn-outline" onclick="exportItems()">엑셀 내보내기</button>
+          <button class="btn btn-outline" onclick="document.getElementById('xlsxFile').click()">엑셀 업로드</button>
+          <input type="file" id="xlsxFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleUpload(this)">
+          <button class="btn btn-primary" onclick="openItemModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            품목 추가
+          </button>
+        </div>
+      </div>
+      <div class="card">
+        <table><thead><tr><th>품목명</th><th>카테고리</th><th>재고</th><th>기준</th><th>상태</th><th>위치</th><th>관리</th></tr></thead>
+        <tbody id="itemsTb"></tbody></table>
+        <div class="empty" id="itemsEmpty" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg><p>등록된 품목이 없습니다</p></div>
+      </div>
+    </div>
+
+    <!-- ══ 출고 이력 ══ -->
+    <div class="page" id="pg-history">
+      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" placeholder="바코드, 담당자 검색..." id="histSearch" oninput="renderHistory()">
+        </div>
+        <div style="margin-left:auto">
+          <button class="btn btn-outline" onclick="exportHistory()">엑셀 내보내기</button>
+        </div>
+      </div>
+      <div class="card">
+        <table><thead><tr><th>일시</th><th>바코드넘버</th><th>담당자</th><th>사용여부</th><th>관리</th></tr></thead>
+        <tbody id="histTb"></tbody></table>
+        <div class="empty" id="histEmpty" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><p>출고 이력이 없습니다</p></div>
+      </div>
+    </div>
+
+    <!-- ══ 시스템 설정 ══ -->
+    <div class="page" id="pg-settings">
+      <div class="setting-section">
+        <h3>사용자 계정 관리</h3>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">고객용 로그인 PIN(4자리 숫자)을 추가/삭제합니다. 관리자 PIN(7522)은 고정되어 있습니다.</p>
+        <div id="userList" style="margin-bottom:14px"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px">
+          <input type="text" id="newUserName" placeholder="사용자 이름 (예: 김간호사)" style="padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none">
+          <input type="text" id="newUserPin" placeholder="4자리 PIN" maxlength="4" inputmode="numeric" style="padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:13px;font-family:'JetBrains Mono',monospace;outline:none;letter-spacing:3px">
+          <button class="btn btn-primary btn-sm" onclick="addUser()">추가</button>
+        </div>
+      </div>
+
+      <div class="setting-section">
+        <h3>카테고리 관리</h3>
+        <div class="cat-list" id="catList"></div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="newCat" placeholder="새 카테고리명" style="flex:1;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none">
+          <button class="btn btn-primary btn-sm" onclick="addCat()">추가</button>
+        </div>
+      </div>
+      <div class="setting-section">
+        <h3>데이터 백업 / 복원</h3>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">모든 데이터를 JSON 파일로 백업하거나 복원합니다.</p>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline" onclick="backupData()">백업 다운로드</button>
+          <button class="btn btn-outline" onclick="document.getElementById('backupFile').click()">백업 복원</button>
+          <input type="file" id="backupFile" accept=".json" style="display:none" onchange="restoreData(this)">
+        </div>
+      </div>
+      <div class="setting-section">
+        <h3>데이터 초기화</h3>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">모든 재고 데이터와 출고 이력을 삭제합니다. 되돌릴 수 없습니다.</p>
+        <button class="btn btn-outline" onclick="resetAll()" style="border-color:var(--danger);color:var(--danger)">전체 데이터 초기화</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /app-wrap -->
+
+<!-- Item Modal -->
+<div class="modal-overlay" id="itemModal">
+  <div class="modal">
+    <div class="modal-head"><h3 id="modalTitle">품목 추가</h3><button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-group"><label>품목명 *</label><input type="text" id="fName" placeholder="예: TS III SA 4.0x10"></div>
+      <div class="form-group"><label>품목 코드</label><input type="text" id="fCode" placeholder="예: TSIII-4010"></div>
+      <div class="form-group"><label>카테고리</label><select id="fCat"></select></div>
+      <div class="form-row">
+        <div class="form-group"><label>현재 수량 *</label><input type="number" id="fQty" min="0" placeholder="0"></div>
+        <div class="form-group"><label>기준 수량</label><input type="number" id="fMin" min="0" placeholder="10"></div>
+      </div>
+      <div class="form-group"><label>보관 위치</label><input type="text" id="fLoc" placeholder="예: 1층 창고 A-3"></div>
+      <div class="form-group"><label>비고</label><textarea id="fNote" rows="2"></textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-outline" onclick="closeModal()">취소</button><button class="btn btn-primary" onclick="saveItem()">저장</button></div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+const SESSION='inv_session';
+const K={items:'inv_items',logs:'inv_logs',cats:'inv_cats',users:'inv_users'};
+const g=k=>{try{return JSON.parse(localStorage.getItem(k))||[]}catch{return[]}};
+const sv=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+if(!localStorage.getItem(K.cats)) sv(K.cats,['Implant','Abutment','Prosthetic','Instrument','소모품','기타']);
+if(!localStorage.getItem(K.users)) sv(K.users,[{pin:'1234',name:'사용자1'},{pin:'8888',name:'사용자2'}]);
+
+let session=JSON.parse(localStorage.getItem(SESSION));
+document.getElementById('appWrap').classList.add('ready');
+document.getElementById('topUserName').textContent=session.name+' (관리자)';
+document.getElementById('userAvatar').textContent='A';
+document.getElementById('sideUserName').textContent=session.name;
+
+// 30분 세션 체크
+const SESSION_TIMEOUT=30*60*1000;
+function checkExpiry(){
+  const elapsed=Date.now()-new Date(session.loginAt).getTime();
+  const remaining=SESSION_TIMEOUT-elapsed;
+  if(remaining<=0){localStorage.removeItem(SESSION);alert('세션이 만료되었습니다.');location.replace('index.html');return;}
+  document.getElementById('sessionTimer').textContent=`남은 시간: ${Math.ceil(remaining/60000)}분`;
+}
+checkExpiry();
+setInterval(checkExpiry,30000);
+
+function logout(){localStorage.removeItem(SESSION);location.replace('index.html');}
+
+// Navigation
+const titles={items:'재고 관리',history:'출고 이력',settings:'시스템 설정'};
+function go(p){
+  document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.nav-item[data-page]').forEach(e=>e.classList.toggle('active',e.dataset.page===p));
+  document.getElementById('pg-'+p).classList.add('active');
+  document.getElementById('pageTitle').textContent=titles[p]||'';
+  if(p==='items') renderItems();
+  if(p==='history') renderHistory();
+  if(p==='settings'){ renderCats(); renderUsers(); }
+}
+
+// Items
+function status(i){if(i.qty===0)return'out';if(i.qty<=(i.min||0))return'low';return'normal';}
+function renderItems(){
+  let items=g(K.items);
+  const q=(document.getElementById('invSearch')?.value||'').toLowerCase();
+  if(q) items=items.filter(i=>i.name.toLowerCase().includes(q)||(i.code||'').toLowerCase().includes(q));
+  const tb=document.getElementById('itemsTb'),em=document.getElementById('itemsEmpty');
+  if(!items.length){tb.innerHTML='';em.style.display='';return;}
+  em.style.display='none';
+  tb.innerHTML=items.map(i=>{const st=status(i);const lb=st==='normal'?'정상':st==='low'?'부족':'품절';
+  return`<tr>
+    <td><div class="item-name">${i.name}</div><div class="item-code">${i.code||''}</div></td>
+    <td>${i.cat||'-'}</td>
+    <td class="mono" style="font-weight:600">${i.qty.toLocaleString()}</td>
+    <td class="mono" style="color:var(--text-muted)">${(i.min||0).toLocaleString()}</td>
+    <td><span class="badge-status badge-${st}">${lb}</span></td>
+    <td style="color:var(--text-muted)">${i.loc||'-'}</td>
+    <td>
+      <button class="action-btn" onclick="editItem('${i.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+      <button class="action-btn del" onclick="delItem('${i.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
+    </td></tr>`;}).join('');
+}
+
+function openItemModal(id){
+  document.getElementById('editId').value=id||'';
+  document.getElementById('modalTitle').textContent=id?'품목 수정':'품목 추가';
+  fillCatSelect();
+  if(id){const it=g(K.items).find(i=>i.id===id);if(it){['fName','fCode','fQty','fMin','fLoc','fNote'].forEach(f=>document.getElementById(f).value=it[f.slice(1).toLowerCase().replace('name','name').replace('code','code').replace('qty','qty').replace('min','min').replace('loc','loc').replace('note','note')]||'');document.getElementById('fName').value=it.name;document.getElementById('fCode').value=it.code||'';document.getElementById('fCat').value=it.cat||'';document.getElementById('fQty').value=it.qty;document.getElementById('fMin').value=it.min||'';document.getElementById('fLoc').value=it.loc||'';document.getElementById('fNote').value=it.note||'';}}
+  else{['fName','fCode','fQty','fMin','fLoc','fNote'].forEach(f=>document.getElementById(f).value='');}
+  document.getElementById('itemModal').classList.add('show');
+}
+function closeModal(){document.getElementById('itemModal').classList.remove('show');}
+function saveItem(){
+  const name=document.getElementById('fName').value.trim();
+  if(!name){toast('품목명을 입력해주세요','err');return;}
+  const items=g(K.items),eid=document.getElementById('editId').value;
+  const d={name,code:document.getElementById('fCode').value.trim(),cat:document.getElementById('fCat').value,qty:parseInt(document.getElementById('fQty').value)||0,min:parseInt(document.getElementById('fMin').value)||0,loc:document.getElementById('fLoc').value.trim(),note:document.getElementById('fNote').value.trim(),updated:new Date().toISOString()};
+  if(eid){const idx=items.findIndex(i=>i.id===eid);if(idx>=0)items[idx]={...items[idx],...d};toast('수정되었습니다','ok');}
+  else{d.id='i_'+Date.now();d.created=new Date().toISOString();items.push(d);toast('추가되었습니다','ok');}
+  sv(K.items,items);closeModal();renderItems();
+}
+function editItem(id){openItemModal(id);}
+function delItem(id){if(!confirm('삭제하시겠습니까?'))return;sv(K.items,g(K.items).filter(i=>i.id!==id));toast('삭제되었습니다','ok');renderItems();}
+function fillCatSelect(){const cats=g(K.cats);document.getElementById('fCat').innerHTML='<option value="">— 선택 —</option>'+cats.map(c=>`<option value="${c}">${c}</option>`).join('');}
+
+// Excel
+function downloadTemplate(){
+  const ws=XLSX.utils.aoa_to_sheet([['품목명','품목코드','카테고리','수량','기준수량','보관위치','비고'],['TS III SA 4.0x10','TSIII-4010','Implant',50,10,'1층 창고 A-3','예시']]);
+  ws['!cols']=[{wch:25},{wch:18},{wch:14},{wch:8},{wch:10},{wch:20},{wch:20}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'양식');XLSX.writeFile(wb,'재고_업로드_양식.xlsx');
+  toast('양식 다운로드 완료','ok');
+}
+function exportItems(){
+  const items=g(K.items);if(!items.length){toast('내보낼 품목이 없습니다','err');return;}
+  const data=items.map(i=>({품목명:i.name,품목코드:i.code||'',카테고리:i.cat||'',재고수량:i.qty,기준수량:i.min||0,상태:status(i)==='normal'?'정상':status(i)==='low'?'부족':'품절',보관위치:i.loc||'',비고:i.note||''}));
+  const ws=XLSX.utils.json_to_sheet(data);ws['!cols']=[{wch:25},{wch:18},{wch:14},{wch:10},{wch:10},{wch:8},{wch:20},{wch:20}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'재고현황');
+  const d=new Date();XLSX.writeFile(wb,`OSSTEM_재고현황_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.xlsx`);
+  toast(`${items.length}건 다운로드 완료`,'ok');
+}
+function handleUpload(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
+      if(!rows.length){toast('데이터가 없습니다','err');input.value='';return;}
+      const items=g(K.items);let added=0,updated=0,skipped=0;
+      rows.forEach(r=>{
+        const name=String(r['품목명']||'').trim();if(!name){skipped++;return;}
+        const code=String(r['품목코드']||'').trim();
+        const d={name,code,cat:String(r['카테고리']||'').trim(),qty:parseInt(r['수량'])||0,min:parseInt(r['기준수량'])||0,loc:String(r['보관위치']||'').trim(),note:String(r['비고']||'').trim()};
+        const idx=code?items.findIndex(i=>i.code===code):items.findIndex(i=>i.name===name);
+        if(idx>=0){items[idx]={...items[idx],...d,updated:new Date().toISOString()};updated++;}
+        else{items.push({id:'i_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),...d,created:new Date().toISOString()});added++;}
+      });
+      sv(K.items,items);input.value='';
+      toast(`업로드 완료: 신규 ${added}, 수정 ${updated}${skipped?', 건너뜀 '+skipped:''}`,'ok');
+      renderItems();
+    }catch(err){toast('처리 실패: '+err.message,'err');input.value='';}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// History
+function renderHistory(){
+  let logs=g(K.logs).filter(l=>l.type==='out').reverse();
+  const q=(document.getElementById('histSearch')?.value||'').toLowerCase();
+  if(q) logs=logs.filter(l=>(l.code||'').toLowerCase().includes(q)||(l.user||'').toLowerCase().includes(q));
+  const tb=document.getElementById('histTb'),em=document.getElementById('histEmpty');
+  if(!logs.length){tb.innerHTML='';em.style.display='';return;}
+  em.style.display='none';
+  tb.innerHTML=logs.map(l=>`<tr>
+    <td class="mono" style="font-size:12px">${l.date}</td>
+    <td class="mono" style="color:var(--accent);font-weight:600">${l.code||'-'}</td>
+    <td>${l.user||'-'}</td>
+    <td><span class="badge-status" style="background:var(--accent-dim);color:var(--accent)">已试用</span></td>
+    <td><button class="action-btn del" onclick="delLog('${l.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg></button></td>
+  </tr>`).join('');
+}
+function delLog(id){if(!confirm('이 이력을 삭제하시겠습니까?'))return;sv(K.logs,g(K.logs).filter(l=>l.id!==id));toast('삭제되었습니다','ok');renderHistory();}
+function exportHistory(){
+  const logs=g(K.logs).filter(l=>l.type==='out');if(!logs.length){toast('내보낼 이력이 없습니다','err');return;}
+  const data=logs.map(l=>({일시:l.date,바코드넘버:l.code||'',담당자:l.user||'',사용여부:'已试用'}));
+  const ws=XLSX.utils.json_to_sheet(data);ws['!cols']=[{wch:22},{wch:20},{wch:14},{wch:10}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'출고이력');
+  const d=new Date();XLSX.writeFile(wb,`OSSTEM_출고이력_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.xlsx`);
+  toast(`${logs.length}건 다운로드 완료`,'ok');
+}
+
+// Settings
+function renderCats(){
+  const cats=g(K.cats);
+  document.getElementById('catList').innerHTML=cats.map((c,i)=>`<span class="cat-tag">${c}<button onclick="delCat(${i})">&times;</button></span>`).join('');
+}
+function addCat(){const v=document.getElementById('newCat').value.trim();if(!v)return;const cats=g(K.cats);if(cats.includes(v)){toast('이미 존재합니다','err');return;}cats.push(v);sv(K.cats,cats);document.getElementById('newCat').value='';toast('추가되었습니다','ok');renderCats();}
+function delCat(i){const cats=g(K.cats);cats.splice(i,1);sv(K.cats,cats);toast('삭제되었습니다','ok');renderCats();}
+
+// ★ 사용자 계정 관리
+function renderUsers(){
+  const users=g(K.users);
+  const el=document.getElementById('userList');
+  if(!users.length){el.innerHTML='<p style="font-size:12px;color:var(--text-muted);text-align:center;padding:12px">등록된 사용자가 없습니다</p>';return;}
+  el.innerHTML=users.map((u,i)=>`<div class="user-row">
+    <div class="user-row-info">
+      <span class="user-row-pin">${u.pin}</span>
+      <span class="user-row-name">${u.name}</span>
+    </div>
+    <button class="action-btn del" onclick="delUser(${i})" title="삭제">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+    </button>
+  </div>`).join('');
+}
+function addUser(){
+  const name=document.getElementById('newUserName').value.trim();
+  const pin=document.getElementById('newUserPin').value.trim();
+  if(!name){toast('이름을 입력해주세요','err');return;}
+  if(!/^\d{4}$/.test(pin)){toast('PIN은 4자리 숫자여야 합니다','err');return;}
+  if(pin==='7522'){toast('7522는 관리자 PIN입니다','err');return;}
+  const users=g(K.users);
+  if(users.some(u=>u.pin===pin)){toast('이미 사용 중인 PIN입니다','err');return;}
+  users.push({pin,name});
+  sv(K.users,users);
+  document.getElementById('newUserName').value='';
+  document.getElementById('newUserPin').value='';
+  toast(`${name} 계정이 추가되었습니다`,'ok');
+  renderUsers();
+}
+function delUser(i){
+  const users=g(K.users);
+  if(!confirm(`${users[i].name} (PIN: ${users[i].pin}) 계정을 삭제하시겠습니까?`))return;
+  users.splice(i,1);
+  sv(K.users,users);
+  toast('계정이 삭제되었습니다','ok');
+  renderUsers();
+}
+
+// PIN 입력칸 숫자만
+document.addEventListener('DOMContentLoaded',()=>{
+  const el=document.getElementById('newUserPin');
+  if(el) el.addEventListener('input',function(){this.value=this.value.replace(/\D/g,'').slice(0,4);});
+});
+function backupData(){
+  const data={items:g(K.items),logs:g(K.logs),cats:g(K.cats),exported:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;
+  a.download=`osstem_backup_${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(url);
+  toast('백업 다운로드 완료','ok');
+}
+function restoreData(input){
+  const file=input.files[0];if(!file)return;
+  if(!confirm('기존 데이터를 덮어씁니다. 계속하시겠습니까?')){input.value='';return;}
+  const reader=new FileReader();
+  reader.onload=e=>{try{const d=JSON.parse(e.target.result);if(d.items)sv(K.items,d.items);if(d.logs)sv(K.logs,d.logs);if(d.cats)sv(K.cats,d.cats);toast('복원 완료','ok');renderItems();}catch(err){toast('파일 오류','err');}input.value='';};
+  reader.readAsText(file);
+}
+function resetAll(){if(!confirm('모든 데이터가 영구 삭제됩니다. 정말 진행하시겠습니까?'))return;if(!confirm('마지막 확인: 정말 삭제하시겠습니까?'))return;localStorage.removeItem(K.items);localStorage.removeItem(K.logs);toast('초기화 완료','ok');renderItems();renderHistory();}
+
+// Toast
+function toast(m,t='ok'){const w=document.getElementById('toastWrap'),el=document.createElement('div');el.className=`toast ${t}`;el.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">${t==='ok'?'<path d="M20 6L9 17l-5-5"/>':'<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'}</svg>${m}`;w.appendChild(el);setTimeout(()=>el.remove(),3000);}
+
+renderItems();
+</script>
+</body>
+</html>

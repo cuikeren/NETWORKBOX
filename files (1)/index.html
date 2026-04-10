@@ -323,10 +323,26 @@
   </div>
 
   <script>
-    const VALID_PINS = {
-      '1234': { name: '사용자1', role: 'user' },
-      '8888': { name: '사용자2', role: 'user' }
-    };
+    const ADMIN_PIN = '7522';
+    const USERS_KEY = 'inv_users';
+
+    // 기본 사용자 계정 초기화
+    if(!localStorage.getItem(USERS_KEY)){
+      localStorage.setItem(USERS_KEY, JSON.stringify([
+        { pin: '1234', name: '사용자1' },
+        { pin: '8888', name: '사용자2' }
+      ]));
+    }
+
+    function getValidUser(pin){
+      if(pin === ADMIN_PIN) return { name:'관리자', role:'admin' };
+      try {
+        const users = JSON.parse(localStorage.getItem(USERS_KEY)) || [];
+        const u = users.find(u => u.pin === pin);
+        if(u) return { name: u.name, role: 'user' };
+      } catch {}
+      return null;
+    }
     const SESSION_KEY = 'inv_session';
 
     // ★ 30분 세션 체크
@@ -338,8 +354,8 @@
         if (s && s.pin && s.loginAt) {
           const elapsed = Date.now() - new Date(s.loginAt).getTime();
           if (elapsed < SESSION_TIMEOUT) {
-            // 세션 유효 → 대시보드로 이동
-            window.location.replace('dashboard.html');
+            // 세션 유효 → 역할에 따라 이동
+            window.location.replace(s.role === 'admin' ? 'admin.html' : 'dashboard.html');
             return;
           }
         }
@@ -366,13 +382,13 @@
       err.classList.remove('show');
 
       setTimeout(() => {
-        const user = VALID_PINS[pw];
+        const user = getValidUser(pw);
         if (user) {
           localStorage.setItem(SESSION_KEY, JSON.stringify({
             pin: pw, name: user.name, role: user.role,
             loginAt: new Date().toISOString()
           }));
-          window.location.href = 'dashboard.html';
+          window.location.href = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
         } else {
           showError('비밀번호가 올바르지 않습니다.');
           pwEl.value = '';
