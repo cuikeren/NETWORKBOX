@@ -400,7 +400,7 @@
       <div style="margin-bottom:16px"><button class="btn btn-primary" onclick="openIOModal('out')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>출고 등록</button></div>
       <div class="card">
         <div class="card-header"><h3>출고 내역</h3></div>
-        <table><thead><tr><th>일시</th><th>품목</th><th>수량</th><th>비고</th></tr></thead>
+        <table><thead><tr><th>일시</th><th>품목</th><th>수량</th><th>증빙</th><th>담당</th><th>비고</th></tr></thead>
         <tbody id="outTb"></tbody></table>
         <div class="empty" id="outEmpty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 19V5m-7 7l7-7 7 7"/></svg><p>출고 내역이 없습니다</p></div>
       </div>
@@ -457,6 +457,29 @@
       <div class="form-group"><label>품목 선택 *</label><select id="ioItem"></select></div>
       <div class="form-group"><label>수량 *</label><input type="number" id="ioQty" min="1" placeholder="0"></div>
       <div class="form-group"><label>비고</label><input type="text" id="ioNote" placeholder="사유 또는 메모"></div>
+
+      <!-- ★ 출고 사진 업로드 (출고일 때만 표시) -->
+      <div class="form-group" id="photoGroup" style="display:none">
+        <label>출고 증빙 사진</label>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <button type="button" class="btn btn-outline" style="flex:1" onclick="document.getElementById('photoCam').click()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            사진 촬영
+          </button>
+          <button type="button" class="btn btn-outline" style="flex:1" onclick="document.getElementById('photoAlbum').click()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>
+            앨범에서 선택
+          </button>
+        </div>
+        <input type="file" id="photoCam" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(this)">
+        <input type="file" id="photoAlbum" accept="image/*" style="display:none" onchange="handlePhoto(this)">
+        <div id="photoPreview" style="display:none;position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--border)">
+          <img id="photoImg" style="width:100%;display:block" alt="출고 증빙">
+          <button type="button" onclick="removePhoto()" style="position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;border:none;background:rgba(0,0,0,.7);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
     </div>
     <div class="modal-foot"><button class="btn btn-outline" onclick="closeIOModal()">취소</button><button class="btn btn-primary" onclick="saveIO()">등록</button></div>
   </div>
@@ -601,10 +624,47 @@ function delItem(id){if(!confirm('삭제하시겠습니까?'))return;sv(K.items,
 // ═══════════════════════════════
 // In/Out
 // ═══════════════════════════════
+let currentPhoto = null; // base64 저장
+
+function handlePhoto(input){
+  const file = input.files[0];
+  if(!file) return;
+  // 용량 제한 체크 (5MB)
+  if(file.size > 5*1024*1024){ toast('사진 크기는 5MB 이하여야 합니다','err'); input.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    // 이미지 리사이즈 (최대 너비 1200px로 압축)
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const maxW = 1200;
+      const scale = Math.min(1, maxW/img.width);
+      canvas.width = img.width*scale;
+      canvas.height = img.height*scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      currentPhoto = canvas.toDataURL('image/jpeg', 0.75);
+      document.getElementById('photoImg').src = currentPhoto;
+      document.getElementById('photoPreview').style.display = 'block';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function removePhoto(){
+  currentPhoto = null;
+  document.getElementById('photoPreview').style.display = 'none';
+  document.getElementById('photoImg').src = '';
+}
+
 function openIOModal(type){
   document.getElementById('ioType').value=type;
   document.getElementById('ioModalTitle').textContent=type==='in'?'입고 등록':'출고 등록';
   document.getElementById('ioQty').value='';document.getElementById('ioNote').value='';
+  // ★ 출고일 때만 사진 업로드 UI 표시
+  document.getElementById('photoGroup').style.display = type==='out' ? 'block' : 'none';
+  removePhoto();
   const sel=document.getElementById('ioItem'),items=g(K.items);
   sel.innerHTML='<option value="">— 품목 선택 —</option>'+items.map(i=>`<option value="${i.id}">${i.name} (현재: ${i.qty})</option>`).join('');
   document.getElementById('ioModal').classList.add('show');
@@ -614,11 +674,13 @@ function saveIO(){
   const type=document.getElementById('ioType').value,itemId=document.getElementById('ioItem').value,qty=parseInt(document.getElementById('ioQty').value)||0,note=document.getElementById('ioNote').value.trim();
   if(!itemId){toast('품목을 선택해주세요','err');return;}
   if(qty<=0){toast('수량을 입력해주세요','err');return;}
+  // ★ 출고는 사진 필수
+  if(type==='out' && !currentPhoto){toast('출고 증빙 사진을 첨부해주세요','err');return;}
   const items=g(K.items),idx=items.findIndex(i=>i.id===itemId);if(idx<0)return;
   if(type==='out'&&items[idx].qty<qty){toast('재고가 부족합니다','err');return;}
   items[idx].qty+=(type==='in'?qty:-qty);items[idx].updated=new Date().toISOString();
   sv(K.items,items);
-  const logs=g(K.logs);logs.push({id:'l_'+Date.now(),itemId,itemName:items[idx].name,type,qty,note,date:new Date().toLocaleString('ko-KR'),user:session.name});
+  const logs=g(K.logs);logs.push({id:'l_'+Date.now(),itemId,itemName:items[idx].name,type,qty,note,date:new Date().toLocaleString('ko-KR'),user:session.name,photo:currentPhoto});
   sv(K.logs,logs);
   toast(type==='in'?'입고 처리되었습니다':'출고 처리되었습니다','ok');
   closeIOModal();renderDash();renderInv();renderLogs(type);
@@ -629,11 +691,33 @@ function renderLogs(type){
   const tb=document.getElementById(tbId),em=document.getElementById(emId);
   if(!logs.length){tb.innerHTML='';em.style.display='';return;}
   em.style.display='none';
-  tb.innerHTML=logs.map(l=>`<tr>
-    <td class="mono" style="font-size:12px">${l.date}</td>
-    <td><span class="item-name">${l.itemName}</span></td>
-    <td class="mono" style="font-weight:600;color:${type==='in'?'var(--success)':'var(--danger)'}">${type==='in'?'+':'-'}${l.qty}</td>
-    <td style="color:var(--text-muted)">${l.note||'-'}</td></tr>`).join('');
+  if(type==='out'){
+    // 출고: 증빙 사진 + 담당자 포함
+    tb.innerHTML=logs.map(l=>`<tr>
+      <td class="mono" style="font-size:12px">${l.date}</td>
+      <td><span class="item-name">${l.itemName}</span></td>
+      <td class="mono" style="font-weight:600;color:var(--danger)">-${l.qty}</td>
+      <td>${l.photo?`<img src="${l.photo}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer" onclick="viewPhoto('${l.id}')">`:'<span style="color:var(--text-muted);font-size:11px">없음</span>'}</td>
+      <td style="color:var(--text-muted);font-size:12px">${l.user||'-'}</td>
+      <td style="color:var(--text-muted)">${l.note||'-'}</td></tr>`).join('');
+  } else {
+    tb.innerHTML=logs.map(l=>`<tr>
+      <td class="mono" style="font-size:12px">${l.date}</td>
+      <td><span class="item-name">${l.itemName}</span></td>
+      <td class="mono" style="font-weight:600;color:var(--success)">+${l.qty}</td>
+      <td style="color:var(--text-muted)">${l.note||'-'}</td></tr>`).join('');
+  }
+}
+
+// ★ 사진 확대 보기
+function viewPhoto(logId){
+  const log = g(K.logs).find(l=>l.id===logId);
+  if(!log||!log.photo) return;
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer';
+  overlay.onclick = () => overlay.remove();
+  overlay.innerHTML = `<img src="${log.photo}" style="max-width:100%;max-height:100%;border-radius:8px">`;
+  document.body.appendChild(overlay);
 }
 
 // ═══════════════════════════════
