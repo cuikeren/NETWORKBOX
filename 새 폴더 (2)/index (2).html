@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>백부장님을 위한 보고 대시보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #FAF8F4;
+    --surface: #FFFFFF;
+    --ink: #0F172A;
+    --ink-2: #334155;
+    --ink-3: #64748B;
+    --rule: #E5E1D8;
+    --rule-soft: #F0EDE5;
+    --accent: #B45309;
+    --accent-soft: #FEF3C7;
+    --good: #15803D;
+    --good-soft: #DCFCE7;
+    --warn: #B45309;
+    --warn-soft: #FEF3C7;
+    --bad: #B91C1C;
+    --bad-soft: #FEE2E2;
+    --shadow: 0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    font-feature-settings: "tnum" 1;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  .num { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; font-feature-settings: "tnum" 1; letter-spacing: -0.01em; }
+  .serif { font-family: 'Fraunces', Georgia, serif; font-style: italic; }
+
+  /* ===== Loading / upload screens ===== */
+  .gate {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg); z-index: 100; padding: 24px;
+  }
+  .gate-card {
+    background: var(--surface); border: 1px solid var(--rule);
+    border-radius: 4px; padding: 48px 40px; max-width: 480px; width: 100%;
+    text-align: center;
+  }
+  .gate-card h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 28px; letter-spacing: -0.02em; margin-bottom: 8px;
+  }
+  .gate-card p { color: var(--ink-3); font-size: 14px; margin-bottom: 24px; }
+  .upload-btn {
+    display: inline-block;
+    background: var(--ink); color: var(--bg);
+    border: none; padding: 14px 28px;
+    font-family: inherit; font-size: 14px; font-weight: 500;
+    cursor: pointer; border-radius: 2px;
+    letter-spacing: 0.02em;
+    transition: opacity 0.2s;
+  }
+  .upload-btn:hover { opacity: 0.85; }
+  .gate-error { color: var(--bad); font-size: 13px; margin-top: 16px; }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 2px solid var(--rule);
+    border-top-color: var(--ink);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== Layout ===== */
+  .app { max-width: 1280px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  header.hero {
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 24px; margin-bottom: 32px;
+  }
+  .eyebrow {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
+    color: var(--ink-3); text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .eyebrow::before {
+    content: ""; width: 24px; height: 1px; background: var(--ink-3);
+  }
+  h1.title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(28px, 5vw, 44px);
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+    color: var(--ink);
+  }
+  h1.title .accent { font-style: italic; color: var(--accent); }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 16px 24px;
+    margin-top: 16px; font-size: 13px; color: var(--ink-3);
+  }
+  .meta strong { color: var(--ink-2); font-weight: 500; }
+  .meta-item { display: flex; align-items: center; gap: 8px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--good); }
+
+  /* ===== KPI Cards ===== */
+  .kpi-section { margin-bottom: 40px; }
+  .section-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 16px; flex-wrap: wrap; gap: 8px;
+  }
+  .section-title {
+    font-size: 13px; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--ink-2);
+  }
+  .section-sub { font-size: 12px; color: var(--ink-3); }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+  }
+  .kpi {
+    background: var(--surface); padding: 20px 22px;
+    display: flex; flex-direction: column; gap: 6px;
+    min-height: 110px; justify-content: space-between;
+  }
+  .kpi-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    color: var(--ink-3); text-transform: uppercase;
+  }
+  .kpi-value {
+    font-size: 28px; font-weight: 500; letter-spacing: -0.02em;
+    color: var(--ink); line-height: 1;
+  }
+  .kpi-unit { font-size: 13px; color: var(--ink-3); margin-left: 4px; font-weight: 400; }
+  .kpi-sub { font-size: 12px; color: var(--ink-3); }
+  .kpi-sub .num { color: var(--ink-2); }
+
+  /* ===== Filter bar ===== */
+  .filter-bar {
+    background: var(--surface); border: 1px solid var(--rule);
+    padding: 16px 20px; margin-bottom: 24px;
+    display: grid; gap: 14px;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 720px) {
+    .filter-bar { grid-template-columns: 2fr 2fr 1.2fr; align-items: end; }
+  }
+  .filter-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink-3);
+    margin-bottom: 8px; display: block;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    border: 1px solid var(--rule); background: var(--surface);
+    padding: 6px 12px; font-size: 12px; font-family: inherit;
+    cursor: pointer; border-radius: 999px;
+    color: var(--ink-2); transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .chip:hover { border-color: var(--ink-3); }
+  .chip.active {
+    background: var(--ink); color: var(--bg); border-color: var(--ink);
+  }
+  .search-input {
+    width: 100%; border: 1px solid var(--rule);
+    background: var(--surface); padding: 8px 12px;
+    font-family: inherit; font-size: 13px; color: var(--ink);
+    border-radius: 2px;
+  }
+  .search-input:focus { outline: none; border-color: var(--ink); }
+
+  /* ===== Tabs ===== */
+  .tabs {
+    display: flex; gap: 0; border-bottom: 1px solid var(--rule);
+    margin-bottom: 24px;
+    overflow-x: auto;
+  }
+  .tab {
+    background: none; border: none; padding: 12px 0; margin-right: 32px;
+    font-family: inherit; font-size: 14px; font-weight: 500;
+    color: var(--ink-3); cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    white-space: nowrap;
+  }
+  .tab:hover { color: var(--ink-2); }
+  .tab.active { color: var(--ink); border-bottom-color: var(--ink); }
+  .tab-count {
+    background: var(--rule-soft); color: var(--ink-2);
+    font-size: 11px; font-weight: 500;
+    padding: 1px 7px; border-radius: 999px; margin-left: 6px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ===== Cards / Sections ===== */
+  .card {
+    background: var(--surface); border: 1px solid var(--rule);
+    margin-bottom: 16px;
+  }
+  .card-head {
+    padding: 14px 20px; border-bottom: 1px solid var(--rule-soft);
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 8px;
+  }
+  .card-title {
+    font-size: 13px; font-weight: 600; letter-spacing: 0.04em;
+    color: var(--ink); text-transform: uppercase;
+  }
+  .card-body { padding: 20px; }
+
+  /* ===== Tables ===== */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead { background: var(--rule-soft); }
+  th {
+    text-align: left; padding: 10px 12px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+    color: var(--ink-2); text-transform: uppercase;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap; cursor: pointer; user-select: none;
+    position: sticky; top: 0; background: var(--rule-soft);
+  }
+  th:hover { color: var(--ink); }
+  th.sort-asc::after { content: " ↑"; color: var(--accent); }
+  th.sort-desc::after { content: " ↓"; color: var(--accent); }
+  td {
+    padding: 10px 12px; border-bottom: 1px solid var(--rule-soft);
+    color: var(--ink-2); white-space: nowrap;
+  }
+  tr:hover td { background: var(--rule-soft); }
+  td.right, th.right { text-align: right; }
+  td.center, th.center { text-align: center; }
+  .badge {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px; font-size: 11px; font-weight: 500;
+    border-radius: 999px; letter-spacing: 0.02em;
+    border: 1px solid;
+  }
+  .badge.A { color: #064E3B; background: #D1FAE5; border-color: #6EE7B7; }
+  .badge.B { color: #1E3A8A; background: #DBEAFE; border-color: #93C5FD; }
+  .badge.C { color: #525252; background: #F4F4F5; border-color: #D4D4D8; }
+  .pill {
+    display: inline-block; padding: 2px 8px;
+    font-size: 11px; font-weight: 500; border-radius: 2px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .pill.good { color: var(--good); background: var(--good-soft); }
+  .pill.warn { color: var(--warn); background: var(--warn-soft); }
+  .pill.bad { color: var(--bad); background: var(--bad-soft); }
+  .pill.muted { color: var(--ink-3); background: var(--rule-soft); }
+
+  /* ===== Special OIC summary ===== */
+  .oic-banner {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    background: var(--ink); color: var(--bg);
+    padding: 0;
+    margin-bottom: 16px;
+  }
+  .oic-stat {
+    padding: 18px 22px; border-right: 1px solid #1E293B;
+  }
+  .oic-stat:last-child { border-right: none; }
+  .oic-stat-label {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
+    color: #94A3B8; text-transform: uppercase; margin-bottom: 6px;
+  }
+  .oic-stat-value { font-size: 24px; font-weight: 500; letter-spacing: -0.02em; }
+  .oic-stat-sub { font-size: 12px; color: #94A3B8; margin-top: 4px; }
+
+  .empty {
+    text-align: center; padding: 60px 20px; color: var(--ink-3);
+    font-size: 13px;
+  }
+
+  /* ===== Hidden ===== */
+  .hidden { display: none !important; }
+
+  /* Responsive table on mobile - keep horizontal scroll */
+  @media (max-width: 720px) {
+    .app { padding: 20px 16px 48px; }
+    .kpi { padding: 16px; min-height: 90px; }
+    .kpi-value { font-size: 22px; }
+    .card-body { padding: 16px; }
+    th, td { padding: 8px 10px; font-size: 12px; }
+    .meta { font-size: 12px; gap: 10px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading / file gate -->
+<div class="gate" id="gate">
+  <div class="gate-card" id="gate-card">
+    <div class="spinner" id="gate-spinner"></div>
+    <h1>데이터 불러오는 중</h1>
+    <p id="gate-msg">잠시만 기다려주세요…</p>
+    <div id="gate-upload" class="hidden">
+      <p>엑셀 파일을 선택해주세요.<br>(<span class="num">백부장님_보고용.xlsx</span>)</p>
+      <label class="upload-btn">
+        파일 선택
+        <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none" />
+      </label>
+      <div class="gate-error hidden" id="gate-error"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Main app -->
+<div class="app hidden" id="app">
+
+  <header class="hero">
+    <div class="eyebrow">奥齿泰 · 네트워크 / 공립병원 사업부</div>
+    <h1 class="title">백부장님을 <span class="accent serif">위한</span> 보고 대시보드</h1>
+    <div class="meta">
+      <div class="meta-item"><span class="dot"></span> <span>마지막 업데이트 <strong id="last-updated">–</strong></span></div>
+      <div class="meta-item"><span>대상 계약 <strong class="num" id="hero-count">–</strong></span></div>
+      <div class="meta-item"><span>사업부 <strong class="num" id="hero-divs">–</strong></span></div>
+    </div>
+  </header>
+
+  <!-- KPI -->
+  <section class="kpi-section">
+    <div class="section-head">
+      <div class="section-title">핵심 지표</div>
+      <div class="section-sub serif" id="kpi-context">— 전체 기준 —</div>
+    </div>
+    <div class="kpi-grid" id="kpi-grid"></div>
+  </section>
+
+  <!-- Filter -->
+  <div class="filter-bar">
+    <div>
+      <label class="filter-label">사업부</label>
+      <div class="chips" id="filter-divs"></div>
+    </div>
+    <div>
+      <label class="filter-label">등급</label>
+      <div class="chips" id="filter-grades"></div>
+    </div>
+    <div>
+      <label class="filter-label">그룹명 검색</label>
+      <input type="text" class="search-input" id="filter-search" placeholder="검색어 입력…" />
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="contract">계약 이행 현황 <span class="tab-count" id="cnt-contract">–</span></button>
+    <button class="tab" data-tab="oic">OIC 현황 <span class="tab-count" id="cnt-oic">–</span></button>
+  </div>
+
+  <!-- Tab content: 계약이행율 -->
+  <div id="tab-contract">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">계약별 상세</div>
+        <div class="section-sub" id="contract-summary">–</div>
+      </div>
+      <div class="table-wrap">
+        <table id="table-contract">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab content: OIC -->
+  <div id="tab-oic" class="hidden">
+    <div class="oic-banner" id="oic-banner"></div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">특별 사용 내역</div>
+        <div class="section-sub serif">사업부 비귀속</div>
+      </div>
+      <div class="card-body" id="oic-special"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">그룹별 OIC 상세</div>
+        <div class="section-sub" id="oic-summary">–</div>
+      </div>
+      <div class="table-wrap">
+        <table id="table-oic">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--rule); color: var(--ink-3); font-size: 12px; text-align: center;">
+    <div class="serif" style="font-size: 14px; margin-bottom: 4px;">Internal Reporting</div>
+    <div>Osstem Implant China · 网络 / 公立病院 事业部</div>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   STATE
+============================================================ */
+const STATE = {
+  contracts: [],   // contract performance rows
+  oic: [],         // OIC rows
+  oicTotal: null,  // TOTAL row
+  oicSpecial: [],  // 공립사용/시장부사용 etc
+  filters: {
+    divs: new Set(),    // selected 사업부 (empty = all)
+    grades: new Set(),  // selected 등급 (empty = all)
+    search: '',
+  },
+  divList: [],
+  gradeList: ['A', 'B', 'C'],
+  sort: { contract: { col: 'sales', dir: 'desc' }, oic: { col: 'group', dir: 'asc' } },
+  lastUpdated: null,
+};
+
+/* ============================================================
+   FORMATTERS
+============================================================ */
+const fmt = {
+  num: (n) => (n == null || isNaN(n)) ? '–' : Math.round(n).toLocaleString('ko-KR'),
+  numSign: (n) => (n == null || isNaN(n)) ? '–' : (n>=0?'':'-') + Math.abs(Math.round(n)).toLocaleString('ko-KR'),
+  money: (n) => (n == null || isNaN(n)) ? '–' : Math.round(n).toLocaleString('ko-KR'),
+  pct: (n) => (n == null || isNaN(n)) ? '–' : (n*100).toFixed(1) + '%',
+  pct0: (n) => (n == null || isNaN(n)) ? '–' : (n*100).toFixed(0) + '%',
+  date: (d) => {
+    if (!d) return '–';
+    if (typeof d === 'string') return d;
+    if (d instanceof Date) return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if (typeof d === 'number') {
+      // Excel serial date
+      const epoch = new Date(1899, 11, 30);
+      const dt = new Date(epoch.getTime() + d*86400000);
+      return fmt.date(dt);
+    }
+    return String(d);
+  },
+  shortDiv: (d) => d ? d.replace('事业部','') : d,
+};
+
+function ratePill(rate) {
+  if (rate == null || isNaN(rate)) return `<span class="pill muted">–</span>`;
+  const cls = rate >= 1.0 ? 'good' : rate >= 0.7 ? 'warn' : 'bad';
+  return `<span class="pill ${cls}">${(rate*100).toFixed(0)}%</span>`;
+}
+function fixturePill(rate) {
+  if (rate == null || isNaN(rate)) return `<span class="pill muted">–</span>`;
+  const cls = rate >= 1.0 ? 'good' : rate >= 0.5 ? 'warn' : 'bad';
+  return `<span class="pill ${cls}">${(rate*100).toFixed(0)}%</span>`;
+}
+
+/* ============================================================
+   PARSE EXCEL
+============================================================ */
+function parseWorkbook(wb) {
+  // -------- 계약이행율 --------
+  const sheet1 = wb.Sheets['계약이행율'];
+  if (!sheet1) throw new Error('"계약이행율" 시트를 찾을 수 없습니다.');
+  const arr1 = XLSX.utils.sheet_to_json(sheet1, { header: 1, defval: null, raw: true });
+  // Header is at index 2 (row 3); data from index 3
+  const contracts = [];
+  for (let i = 3; i < arr1.length; i++) {
+    const r = arr1[i];
+    if (!r || !r[1]) continue; // group name required
+    contracts.push({
+      contractId: r[0] || '',
+      group: r[1],
+      div: r[2],
+      grade: r[3],
+      signDate: r[4],
+      signMonth: r[5],
+      validity: r[6],
+      extensions: r[7],
+      sales: toNum(r[8]),
+      fixtureTotal: toNum(r[9]),
+      fixtureNoZero: toNum(r[10]),
+      collected: toNum(r[11]),
+      contractAmount: toNum(r[12]),
+      collectRate: toNum(r[13]),
+      fixtureRate: toNum(r[14]),
+    });
+  }
+  STATE.contracts = contracts;
+
+  // -------- OIC --------
+  const sheet2 = wb.Sheets['OIC'];
+  if (!sheet2) throw new Error('"OIC" 시트를 찾을 수 없습니다.');
+  const arr2 = XLSX.utils.sheet_to_json(sheet2, { header: 1, defval: null, raw: true });
+  // Row 0 has 취소계약제외 marker + count, Row 1+2 are headers, Row 3 is TOTAL,
+  // Rows 4-5 are 공립사용/시장부사용, Row 6+ data
+  const oic = [];
+  const special = [];
+  let total = null;
+
+  for (let i = 3; i < arr2.length; i++) {
+    const r = arr2[i];
+    if (!r) continue;
+    const groupName = r[1];
+    if (!groupName) continue;
+
+    const item = {
+      group: groupName,
+      div: r[2],
+      contractId: r[3],
+      grade: r[4],
+      contractCount: toNum(r[5]),
+      grantDomestic: toNum(r[6]),
+      grantOverseas: toNum(r[7]),
+      usedDomestic: toNum(r[8]),
+      usedOverseas: toNum(r[9]),
+      remainDomestic: toNum(r[10]),
+      remainOverseas: toNum(r[11]),
+      consumeDomestic: toNum(r[12]),
+      consumeOverseas: toNum(r[13]),
+      fixGifted: toNum(r[14]),
+      fixExchangeable: toNum(r[15]),
+    };
+
+    if (groupName === 'TOTAL') {
+      total = item;
+    } else if (groupName === '공립사용' || groupName === '시장부사용' ||
+               String(groupName).indexOf('사용') !== -1 && !item.div) {
+      special.push(item);
+    } else {
+      oic.push(item);
+    }
+  }
+  STATE.oic = oic;
+  STATE.oicSpecial = special;
+  STATE.oicTotal = total;
+
+  // -------- divisions --------
+  const divs = new Set();
+  contracts.forEach(c => c.div && divs.add(c.div));
+  oic.forEach(c => c.div && divs.add(c.div));
+  STATE.divList = Array.from(divs).sort();
+}
+
+function toNum(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number') return v;
+  const n = Number(String(v).replace(/,/g,''));
+  return isNaN(n) ? null : n;
+}
+
+/* ============================================================
+   FILTER / DERIVED
+============================================================ */
+function filteredContracts() {
+  return STATE.contracts.filter(c => {
+    if (STATE.filters.divs.size > 0 && !STATE.filters.divs.has(c.div)) return false;
+    if (STATE.filters.grades.size > 0 && !STATE.filters.grades.has(c.grade)) return false;
+    if (STATE.filters.search) {
+      const q = STATE.filters.search.toLowerCase();
+      if (!String(c.group||'').toLowerCase().includes(q) &&
+          !String(c.contractId||'').toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function filteredOic() {
+  return STATE.oic.filter(c => {
+    if (STATE.filters.divs.size > 0 && !STATE.filters.divs.has(c.div)) return false;
+    if (STATE.filters.grades.size > 0 && !STATE.filters.grades.has(c.grade)) return false;
+    if (STATE.filters.search) {
+      const q = STATE.filters.search.toLowerCase();
+      if (!String(c.group||'').toLowerCase().includes(q) &&
+          !String(c.contractId||'').toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+/* ============================================================
+   RENDER: KPI
+============================================================ */
+function renderKpi() {
+  const cs = filteredContracts();
+  const oics = filteredOic();
+  const total = (arr, key) => arr.reduce((s, x) => s + (x[key] || 0), 0);
+  const avg = (arr, key) => {
+    const valid = arr.filter(x => x[key] != null && !isNaN(x[key]));
+    if (!valid.length) return null;
+    return valid.reduce((s,x)=>s+x[key],0) / valid.length;
+  };
+
+  const totalSales = total(cs, 'sales');
+  const totalCollected = total(cs, 'collected');
+  const totalContractAmt = total(cs, 'contractAmount');
+  const totalFixture = total(cs, 'fixtureTotal');
+  const overallCollect = totalContractAmt ? totalCollected / totalContractAmt : null;
+  const avgCollectRate = avg(cs, 'collectRate');
+  const avgFixtureRate = avg(cs, 'fixtureRate');
+
+  const grantedD = total(oics, 'grantDomestic');
+  const usedD = total(oics, 'usedDomestic');
+  const grantedO = total(oics, 'grantOverseas');
+  const usedO = total(oics, 'usedOverseas');
+
+  document.getElementById('hero-count').textContent = cs.length.toLocaleString();
+  const divsInScope = new Set(cs.map(c=>c.div).filter(Boolean));
+  document.getElementById('hero-divs').textContent = divsInScope.size;
+
+  const ctxText = (() => {
+    const parts = [];
+    if (STATE.filters.divs.size > 0) parts.push(`${STATE.filters.divs.size}개 사업부`);
+    if (STATE.filters.grades.size > 0) parts.push(`등급 ${[...STATE.filters.grades].join('·')}`);
+    if (STATE.filters.search) parts.push(`"${STATE.filters.search}"`);
+    return parts.length ? `— ${parts.join(' / ')} 기준 —` : '— 전체 기준 —';
+  })();
+  document.getElementById('kpi-context').textContent = ctxText;
+
+  const cards = [
+    { label: '총 매출액', value: fmt.money(totalSales), unit: 'CNY', sub: `${cs.length}개 계약` },
+    { label: '총 회수액', value: fmt.money(totalCollected), unit: 'CNY', sub: `합同 ${fmt.money(totalContractAmt)}` },
+    { label: '평균 회수율', value: fmt.pct(avgCollectRate), unit: '', sub: `종합 ${fmt.pct(overallCollect)}` },
+    { label: 'Fixture 달성률', value: fmt.pct(avgFixtureRate), unit: '', sub: `총 ${fmt.num(totalFixture)} ea` },
+    { label: 'OIC 국내 소진', value: grantedD ? fmt.pct0(usedD/grantedD) : '–', unit: '', sub: `${fmt.num(usedD)} / ${fmt.num(grantedD)}` },
+    { label: 'OIC 해외 소진', value: grantedO ? fmt.pct0(usedO/grantedO) : '–', unit: '', sub: `${fmt.num(usedO)} / ${fmt.num(grantedO)}` },
+  ];
+
+  document.getElementById('kpi-grid').innerHTML = cards.map(c => `
+    <div class="kpi">
+      <div class="kpi-label">${c.label}</div>
+      <div>
+        <span class="kpi-value num">${c.value}</span>${c.unit ? `<span class="kpi-unit">${c.unit}</span>` : ''}
+      </div>
+      <div class="kpi-sub">${c.sub}</div>
+    </div>
+  `).join('');
+}
+
+/* ============================================================
+   RENDER: FILTERS
+============================================================ */
+function renderFilters() {
+  const divsEl = document.getElementById('filter-divs');
+  divsEl.innerHTML = '';
+  // "전체" option
+  const allBtn = document.createElement('button');
+  allBtn.className = 'chip' + (STATE.filters.divs.size === 0 ? ' active' : '');
+  allBtn.textContent = '전체';
+  allBtn.onclick = () => { STATE.filters.divs.clear(); rerender(); };
+  divsEl.appendChild(allBtn);
+  STATE.divList.forEach(div => {
+    const btn = document.createElement('button');
+    btn.className = 'chip' + (STATE.filters.divs.has(div) ? ' active' : '');
+    btn.textContent = fmt.shortDiv(div);
+    btn.onclick = () => {
+      if (STATE.filters.divs.has(div)) STATE.filters.divs.delete(div);
+      else STATE.filters.divs.add(div);
+      rerender();
+    };
+    divsEl.appendChild(btn);
+  });
+
+  const gradesEl = document.getElementById('filter-grades');
+  gradesEl.innerHTML = '';
+  const allG = document.createElement('button');
+  allG.className = 'chip' + (STATE.filters.grades.size === 0 ? ' active' : '');
+  allG.textContent = '전체';
+  allG.onclick = () => { STATE.filters.grades.clear(); rerender(); };
+  gradesEl.appendChild(allG);
+  STATE.gradeList.forEach(g => {
+    const btn = document.createElement('button');
+    btn.className = 'chip' + (STATE.filters.grades.has(g) ? ' active' : '');
+    btn.textContent = g;
+    btn.onclick = () => {
+      if (STATE.filters.grades.has(g)) STATE.filters.grades.delete(g);
+      else STATE.filters.grades.add(g);
+      rerender();
+    };
+    gradesEl.appendChild(btn);
+  });
+}
+
+/* ============================================================
+   RENDER: TABLES
+============================================================ */
+const CONTRACT_COLS = [
+  { key: 'group', label: '그룹', sticky: true },
+  { key: 'div', label: '사업부', fmt: fmt.shortDiv },
+  { key: 'grade', label: '등급', center: true, render: (v) => v ? `<span class="badge ${v}">${v}</span>` : '–' },
+  { key: 'contractId', label: '계약번호', mono: true },
+  { key: 'signDate', label: '签約日', fmt: fmt.date },
+  { key: 'sales', label: '매출 (CNY)', right: true, mono: true, fmt: fmt.money },
+  { key: 'collected', label: '회수액', right: true, mono: true, fmt: fmt.money },
+  { key: 'contractAmount', label: '합同금액', right: true, mono: true, fmt: fmt.money },
+  { key: 'collectRate', label: '회수율', right: true, render: (v) => ratePill(v) },
+  { key: 'fixtureTotal', label: 'Fixture', right: true, mono: true, fmt: fmt.num },
+  { key: 'fixtureRate', label: 'Fix 달성률', right: true, render: (v) => fixturePill(v) },
+];
+
+const OIC_COLS = [
+  { key: 'group', label: '그룹', sticky: true },
+  { key: 'div', label: '사업부', fmt: fmt.shortDiv },
+  { key: 'grade', label: '등급', center: true, render: (v) => v ? `<span class="badge ${v}">${v}</span>` : '–' },
+  { key: 'contractId', label: '계약번호', mono: true },
+  { key: 'grantDomestic', label: '증정 (国内)', right: true, mono: true, fmt: fmt.num },
+  { key: 'usedDomestic', label: '사용 (国内)', right: true, mono: true, fmt: fmt.num },
+  { key: 'remainDomestic', label: '잔여 (国内)', right: true, mono: true, fmt: fmt.numSign },
+  { key: 'consumeDomestic', label: '소진율 (国内)', right: true, render: (v) => v != null ? fmt.pct(v) : '–' },
+  { key: 'grantOverseas', label: '증정 (海外)', right: true, mono: true, fmt: fmt.num },
+  { key: 'usedOverseas', label: '사용 (海外)', right: true, mono: true, fmt: fmt.num },
+  { key: 'remainOverseas', label: '잔여 (海外)', right: true, mono: true, fmt: fmt.numSign },
+  { key: 'consumeOverseas', label: '소진율 (海外)', right: true, render: (v) => v != null ? fmt.pct(v) : '–' },
+  { key: 'fixGifted', label: 'Fix 증정', right: true, mono: true, fmt: fmt.num },
+];
+
+function renderContractTable() {
+  const data = filteredContracts();
+  // Sort
+  const { col, dir } = STATE.sort.contract;
+  data.sort((a,b) => {
+    let va = a[col], vb = b[col];
+    if (va == null) va = dir === 'asc' ? Infinity : -Infinity;
+    if (vb == null) vb = dir === 'asc' ? Infinity : -Infinity;
+    if (typeof va === 'string') return dir === 'asc' ? va.localeCompare(vb,'zh') : vb.localeCompare(va,'zh');
+    return dir === 'asc' ? va - vb : vb - va;
+  });
+
+  const t = document.getElementById('table-contract');
+  t.querySelector('thead').innerHTML = '<tr>' + CONTRACT_COLS.map(c => {
+    const sortCls = STATE.sort.contract.col === c.key ? (STATE.sort.contract.dir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
+    const align = c.right ? 'right' : c.center ? 'center' : '';
+    return `<th class="${align} ${sortCls}" data-col="${c.key}">${c.label}</th>`;
+  }).join('') + '</tr>';
+
+  t.querySelectorAll('thead th').forEach(th => {
+    th.onclick = () => {
+      const col = th.dataset.col;
+      if (STATE.sort.contract.col === col) STATE.sort.contract.dir = STATE.sort.contract.dir === 'asc' ? 'desc' : 'asc';
+      else { STATE.sort.contract.col = col; STATE.sort.contract.dir = 'desc'; }
+      renderContractTable();
+    };
+  });
+
+  if (data.length === 0) {
+    t.querySelector('tbody').innerHTML = `<tr><td colspan="${CONTRACT_COLS.length}" class="empty">결과 없음</td></tr>`;
+  } else {
+    t.querySelector('tbody').innerHTML = data.map(row => '<tr>' + CONTRACT_COLS.map(c => {
+      const v = row[c.key];
+      const align = c.right ? 'right' : c.center ? 'center' : '';
+      const monoCls = c.mono ? 'num' : '';
+      const content = c.render ? c.render(v) : (c.fmt ? c.fmt(v) : (v ?? '–'));
+      return `<td class="${align} ${monoCls}">${content}</td>`;
+    }).join('') + '</tr>').join('');
+  }
+
+  document.getElementById('contract-summary').textContent = `${data.length}개 계약 · 매출 ${fmt.money(data.reduce((s,c)=>s+(c.sales||0),0))} CNY`;
+  document.getElementById('cnt-contract').textContent = data.length;
+}
+
+function renderOicTable() {
+  const data = filteredOic();
+  const { col, dir } = STATE.sort.oic;
+  data.sort((a,b) => {
+    let va = a[col], vb = b[col];
+    if (va == null) va = dir === 'asc' ? Infinity : -Infinity;
+    if (vb == null) vb = dir === 'asc' ? Infinity : -Infinity;
+    if (typeof va === 'string') return dir === 'asc' ? va.localeCompare(vb,'zh') : vb.localeCompare(va,'zh');
+    return dir === 'asc' ? va - vb : vb - va;
+  });
+
+  const t = document.getElementById('table-oic');
+  t.querySelector('thead').innerHTML = '<tr>' + OIC_COLS.map(c => {
+    const sortCls = STATE.sort.oic.col === c.key ? (STATE.sort.oic.dir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
+    const align = c.right ? 'right' : c.center ? 'center' : '';
+    return `<th class="${align} ${sortCls}" data-col="${c.key}">${c.label}</th>`;
+  }).join('') + '</tr>';
+
+  t.querySelectorAll('thead th').forEach(th => {
+    th.onclick = () => {
+      const col = th.dataset.col;
+      if (STATE.sort.oic.col === col) STATE.sort.oic.dir = STATE.sort.oic.dir === 'asc' ? 'desc' : 'asc';
+      else { STATE.sort.oic.col = col; STATE.sort.oic.dir = 'desc'; }
+      renderOicTable();
+    };
+  });
+
+  if (data.length === 0) {
+    t.querySelector('tbody').innerHTML = `<tr><td colspan="${OIC_COLS.length}" class="empty">결과 없음</td></tr>`;
+  } else {
+    t.querySelector('tbody').innerHTML = data.map(row => '<tr>' + OIC_COLS.map(c => {
+      const v = row[c.key];
+      const align = c.right ? 'right' : c.center ? 'center' : '';
+      const monoCls = c.mono ? 'num' : '';
+      const content = c.render ? c.render(v) : (c.fmt ? c.fmt(v) : (v ?? '–'));
+      return `<td class="${align} ${monoCls}">${content}</td>`;
+    }).join('') + '</tr>').join('');
+  }
+  document.getElementById('cnt-oic').textContent = data.length;
+
+  // OIC banner (always shows total — uses TOTAL row from sheet, scoped to filtered set if filtered)
+  const isFiltered = STATE.filters.divs.size > 0 || STATE.filters.grades.size > 0 || STATE.filters.search;
+  let banner;
+  if (isFiltered) {
+    const sum = (k) => data.reduce((s,x)=>s+(x[k]||0),0);
+    banner = {
+      contracts: sum('contractCount') || data.length,
+      gD: sum('grantDomestic'), uD: sum('usedDomestic'),
+      gO: sum('grantOverseas'), uO: sum('usedOverseas'),
+      label: '필터 적용 합계',
+    };
+  } else {
+    const t = STATE.oicTotal || {};
+    banner = {
+      contracts: t.contractCount,
+      gD: t.grantDomestic, uD: t.usedDomestic,
+      gO: t.grantOverseas, uO: t.usedOverseas,
+      label: '전체 (취소계약 제외)',
+    };
+  }
+
+  document.getElementById('oic-banner').innerHTML = `
+    <div class="oic-stat">
+      <div class="oic-stat-label">${banner.label}</div>
+      <div class="oic-stat-value num">${fmt.num(banner.contracts)}</div>
+      <div class="oic-stat-sub">계약 건수</div>
+    </div>
+    <div class="oic-stat">
+      <div class="oic-stat-label">국내 OIC</div>
+      <div class="oic-stat-value num">${fmt.num(banner.uD)} / ${fmt.num(banner.gD)}</div>
+      <div class="oic-stat-sub">소진율 ${banner.gD ? fmt.pct(banner.uD/banner.gD) : '–'}</div>
+    </div>
+    <div class="oic-stat">
+      <div class="oic-stat-label">해외 OIC</div>
+      <div class="oic-stat-value num">${fmt.num(banner.uO)} / ${fmt.num(banner.gO)}</div>
+      <div class="oic-stat-sub">소진율 ${banner.gO ? fmt.pct(banner.uO/banner.gO) : '–'}</div>
+    </div>
+    <div class="oic-stat">
+      <div class="oic-stat-label">잔여</div>
+      <div class="oic-stat-value num">${fmt.num((banner.gD||0)-(banner.uD||0))} <span style="color:#94A3B8;font-size:14px">国内</span></div>
+      <div class="oic-stat-sub">+ ${fmt.num((banner.gO||0)-(banner.uO||0))} 海外</div>
+    </div>
+  `;
+
+  // Special rows (공립사용 / 시장부사용)
+  const sp = STATE.oicSpecial || [];
+  const specialEl = document.getElementById('oic-special');
+  if (sp.length === 0) {
+    specialEl.innerHTML = `<div class="empty" style="padding: 20px 0;">특별 사용 내역 없음</div>`;
+  } else {
+    specialEl.innerHTML = `
+      <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <tbody>
+          ${sp.map(s => `
+            <tr style="border-bottom:1px solid var(--rule-soft)">
+              <td style="padding:10px 4px; font-weight:500; color:var(--ink)">${s.group}</td>
+              <td style="padding:10px 4px; text-align:right" class="num">국내 ${fmt.num(s.usedDomestic)}</td>
+              <td style="padding:10px 4px; text-align:right; color:var(--ink-3)" class="num">해외 ${fmt.num(s.usedOverseas)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div style="font-size:11px; color:var(--ink-3); margin-top:12px; padding-top:10px; border-top:1px solid var(--rule-soft)">
+        ※ 사업부에 속하지 않는 본사/공립 직접 사용분
+      </div>
+    `;
+  }
+
+  document.getElementById('oic-summary').textContent = `${data.length}개 그룹`;
+}
+
+/* ============================================================
+   RERENDER
+============================================================ */
+function rerender() {
+  renderFilters();
+  renderKpi();
+  renderContractTable();
+  renderOicTable();
+}
+
+/* ============================================================
+   TABS
+============================================================ */
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    const tab = t.dataset.tab;
+    document.getElementById('tab-contract').classList.toggle('hidden', tab !== 'contract');
+    document.getElementById('tab-oic').classList.toggle('hidden', tab !== 'oic');
+  };
+});
+
+document.getElementById('filter-search').addEventListener('input', (e) => {
+  STATE.filters.search = e.target.value.trim();
+  rerender();
+});
+
+/* ============================================================
+   INIT
+============================================================ */
+async function init() {
+  // Try to fetch data.xlsx from same directory
+  try {
+    const res = await fetch('./data.xlsx', { cache: 'no-store' });
+    if (!res.ok) throw new Error('not found');
+    const buf = await res.arrayBuffer();
+    loadFromBuffer(buf);
+    // Get last-modified header
+    const lm = res.headers.get('last-modified');
+    STATE.lastUpdated = lm ? new Date(lm) : new Date();
+  } catch (e) {
+    showUploadGate();
+  }
+}
+
+function loadFromBuffer(buf) {
+  try {
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+    parseWorkbook(wb);
+    document.getElementById('last-updated').textContent =
+      (STATE.lastUpdated || new Date()).toLocaleString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+    document.getElementById('gate').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    rerender();
+  } catch (err) {
+    document.getElementById('gate-error').textContent = '파일 분석 중 오류: ' + err.message;
+    document.getElementById('gate-error').classList.remove('hidden');
+    showUploadGate();
+  }
+}
+
+function showUploadGate() {
+  document.getElementById('gate-spinner').classList.add('hidden');
+  document.getElementById('gate-msg').textContent = '엑셀 파일을 업로드해주세요.';
+  document.getElementById('gate-upload').classList.remove('hidden');
+}
+
+document.getElementById('file-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const buf = await file.arrayBuffer();
+  STATE.lastUpdated = new Date(file.lastModified);
+  loadFromBuffer(buf);
+});
+
+init();
+</script>
+</body>
+</html>
