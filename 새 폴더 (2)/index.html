@@ -2,958 +2,872 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>백부장님을 위한 보고 대시보드</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0" />
+<title>네트워크·공립병원 사업부 대시보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
-    --bg: #FAF8F4;
-    --surface: #FFFFFF;
-    --ink: #0F172A;
+    --bg: #f1f5f9;
+    --card: #ffffff;
+    --ink: #0f172a;
     --ink-2: #334155;
-    --ink-3: #64748B;
-    --rule: #E5E1D8;
-    --rule-soft: #F0EDE5;
-    --accent: #B45309;
-    --accent-soft: #FEF3C7;
-    --good: #15803D;
-    --good-soft: #DCFCE7;
-    --warn: #B45309;
-    --warn-soft: #FEF3C7;
-    --bad: #B91C1C;
-    --bad-soft: #FEE2E2;
-    --shadow: 0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.06);
+    --ink-3: #64748b;
+    --line: #e2e8f0;
+    --line-2: #cbd5e1;
+    --brand: #0f172a;
+    --accent: #0891b2;
+    --good: #16a34a;
+    --good-2: #22c55e;
+    --ok: #2563eb;
+    --warn: #f59e0b;
+    --bad: #dc2626;
+    --grade-a: #16a34a;
+    --grade-b: #2563eb;
+    --grade-c: #dc2626;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body {
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans KR', 'Noto Sans SC', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     background: var(--bg);
     color: var(--ink);
-    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-    font-feature-settings: "tnum" 1;
-    -webkit-font-smoothing: antialiased;
+    font-size: 14px;
     line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
   }
-  .num { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; font-feature-settings: "tnum" 1; letter-spacing: -0.01em; }
-  .serif { font-family: 'Fraunces', Georgia, serif; font-style: italic; }
+  .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 
-  /* ===== Loading / upload screens ===== */
-  .gate {
-    position: fixed; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--bg); z-index: 100; padding: 24px;
+  header {
+    background: var(--brand);
+    color: #fff;
+    padding: 16px 16px 14px;
+    position: sticky; top: 0; z-index: 50;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
   }
-  .gate-card {
-    background: var(--surface); border: 1px solid var(--rule);
-    border-radius: 4px; padding: 48px 40px; max-width: 480px; width: 100%;
-    text-align: center;
+  .header-inner {
+    max-width: 1400px; margin: 0 auto;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px;
   }
-  .gate-card h1 {
-    font-family: 'Fraunces', Georgia, serif;
-    font-weight: 500;
-    font-size: 28px; letter-spacing: -0.02em; margin-bottom: 8px;
-  }
-  .gate-card p { color: var(--ink-3); font-size: 14px; margin-bottom: 24px; }
-  .upload-btn {
-    display: inline-block;
-    background: var(--ink); color: var(--bg);
-    border: none; padding: 14px 28px;
-    font-family: inherit; font-size: 14px; font-weight: 500;
-    cursor: pointer; border-radius: 2px;
-    letter-spacing: 0.02em;
-    transition: opacity 0.2s;
-  }
-  .upload-btn:hover { opacity: 0.85; }
-  .gate-error { color: var(--bad); font-size: 13px; margin-top: 16px; }
-  .spinner {
-    width: 32px; height: 32px;
-    border: 2px solid var(--rule);
-    border-top-color: var(--ink);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin: 0 auto 16px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  header h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+  header .sub { font-size: 12px; color: #94a3b8; font-weight: 400; }
+  header .meta { margin-left: auto; font-size: 11px; color: #cbd5e1; font-variant-numeric: tabular-nums; }
 
-  /* ===== Layout ===== */
-  .app { max-width: 1280px; margin: 0 auto; padding: 32px 24px 64px; }
-
-  header.hero {
-    border-bottom: 1px solid var(--rule);
-    padding-bottom: 24px; margin-bottom: 32px;
-  }
-  .eyebrow {
-    display: flex; align-items: center; gap: 12px;
-    font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
-    color: var(--ink-3); text-transform: uppercase;
-    margin-bottom: 12px;
-  }
-  .eyebrow::before {
-    content: ""; width: 24px; height: 1px; background: var(--ink-3);
-  }
-  h1.title {
-    font-family: 'Fraunces', Georgia, serif;
-    font-weight: 400;
-    font-size: clamp(28px, 5vw, 44px);
-    letter-spacing: -0.025em;
-    line-height: 1.1;
-    color: var(--ink);
-  }
-  h1.title .accent { font-style: italic; color: var(--accent); }
-  .meta {
-    display: flex; flex-wrap: wrap; gap: 16px 24px;
-    margin-top: 16px; font-size: 13px; color: var(--ink-3);
-  }
-  .meta strong { color: var(--ink-2); font-weight: 500; }
-  .meta-item { display: flex; align-items: center; gap: 8px; }
-  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--good); }
-
-  /* ===== KPI Cards ===== */
-  .kpi-section { margin-bottom: 40px; }
-  .section-head {
-    display: flex; align-items: baseline; justify-content: space-between;
-    margin-bottom: 16px; flex-wrap: wrap; gap: 8px;
-  }
-  .section-title {
-    font-size: 13px; font-weight: 600; letter-spacing: 0.06em;
-    text-transform: uppercase; color: var(--ink-2);
-  }
-  .section-sub { font-size: 12px; color: var(--ink-3); }
-
-  .kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 1px;
-    background: var(--rule);
-    border: 1px solid var(--rule);
-  }
-  .kpi {
-    background: var(--surface); padding: 20px 22px;
-    display: flex; flex-direction: column; gap: 6px;
-    min-height: 110px; justify-content: space-between;
-  }
-  .kpi-label {
-    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
-    color: var(--ink-3); text-transform: uppercase;
-  }
-  .kpi-value {
-    font-size: 28px; font-weight: 500; letter-spacing: -0.02em;
-    color: var(--ink); line-height: 1;
-  }
-  .kpi-unit { font-size: 13px; color: var(--ink-3); margin-left: 4px; font-weight: 400; }
-  .kpi-sub { font-size: 12px; color: var(--ink-3); }
-  .kpi-sub .num { color: var(--ink-2); }
-
-  /* ===== Filter bar ===== */
-  .filter-bar {
-    background: var(--surface); border: 1px solid var(--rule);
-    padding: 16px 20px; margin-bottom: 24px;
-    display: grid; gap: 14px;
-    grid-template-columns: 1fr;
-  }
-  @media (min-width: 720px) {
-    .filter-bar { grid-template-columns: 2fr 2fr 1.2fr; align-items: end; }
-  }
-  .filter-label {
-    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
-    text-transform: uppercase; color: var(--ink-3);
-    margin-bottom: 8px; display: block;
-  }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip {
-    border: 1px solid var(--rule); background: var(--surface);
-    padding: 6px 12px; font-size: 12px; font-family: inherit;
-    cursor: pointer; border-radius: 999px;
-    color: var(--ink-2); transition: all 0.15s;
-    white-space: nowrap;
-  }
-  .chip:hover { border-color: var(--ink-3); }
-  .chip.active {
-    background: var(--ink); color: var(--bg); border-color: var(--ink);
-  }
-  .search-input {
-    width: 100%; border: 1px solid var(--rule);
-    background: var(--surface); padding: 8px 12px;
-    font-family: inherit; font-size: 13px; color: var(--ink);
-    border-radius: 2px;
-  }
-  .search-input:focus { outline: none; border-color: var(--ink); }
-
-  /* ===== Tabs ===== */
   .tabs {
-    display: flex; gap: 0; border-bottom: 1px solid var(--rule);
-    margin-bottom: 24px;
-    overflow-x: auto;
+    display: flex; gap: 4px;
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+    padding: 0 12px;
+    position: sticky; top: 56px; z-index: 40;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
   }
   .tab {
-    background: none; border: none; padding: 12px 0; margin-right: 32px;
-    font-family: inherit; font-size: 14px; font-weight: 500;
-    color: var(--ink-3); cursor: pointer;
+    padding: 12px 14px; font-size: 14px; font-weight: 600; color: var(--ink-3);
+    border: none; background: none; cursor: pointer;
     border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
+    white-space: nowrap; margin-bottom: -1px; font-family: inherit;
+  }
+  .tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+
+  main { max-width: 1400px; margin: 0 auto; padding: 12px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Filters */
+  .filters {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px; margin-bottom: 12px;
+    display: grid; grid-template-columns: 1fr; gap: 8px;
+  }
+  .filters label {
+    display: block; font-size: 11px; font-weight: 600; color: var(--ink-3);
+    margin-bottom: 4px; letter-spacing: 0.02em; text-transform: uppercase;
+  }
+  .filters select, .filters input {
+    width: 100%; padding: 9px 10px;
+    border: 1px solid var(--line-2); border-radius: 7px;
+    font-size: 14px; background: #fff; color: var(--ink);
+    font-family: inherit; appearance: none; -webkit-appearance: none;
+  }
+  .filters select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+    padding-right: 30px;
+  }
+  .filters input:focus, .filters select:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.12);
+  }
+  .reset-btn {
+    grid-column: 1 / -1;
+    padding: 8px; background: #f1f5f9; color: var(--ink-2);
+    border: 1px solid var(--line); border-radius: 7px;
+    font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .reset-btn:hover { background: #e2e8f0; }
+  @media (min-width: 640px) {
+    .filters { grid-template-columns: 1fr 1fr 1fr auto; align-items: end; }
+    .reset-btn { grid-column: auto; padding: 9px 16px; }
+  }
+
+  /* KPI summary cards */
+  .kpis {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  @media (min-width: 640px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 1000px) { .kpis { grid-template-columns: repeat(5, 1fr); gap: 10px; } }
+  .kpi {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; position: relative; overflow: hidden;
+  }
+  .kpi::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--accent);
+  }
+  .kpi.good::before { background: var(--good); }
+  .kpi.warn::before { background: var(--warn); }
+  .kpi.bad::before { background: var(--bad); }
+  .kpi .label {
+    font-size: 11px; color: var(--ink-3); font-weight: 600;
+    margin-bottom: 6px; letter-spacing: 0.02em;
+  }
+  .kpi .value {
+    font-size: 20px; font-weight: 800; color: var(--ink);
+    letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+  }
+  @media (min-width: 640px) { .kpi .value { font-size: 22px; } }
+  .kpi .unit { font-size: 12px; font-weight: 600; color: var(--ink-3); margin-left: 2px; }
+  .kpi .sub { font-size: 11px; color: var(--ink-3); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .kpi.good .value { color: var(--good); }
+  .kpi.warn .value { color: var(--warn); }
+  .kpi.bad .value { color: var(--bad); }
+
+  /* Grade pills inside sub */
+  .gpill {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-weight: 700;
+    font-size: 10px;
+    color: #fff;
+    margin-right: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .gpill.A { background: var(--grade-a); }
+  .gpill.B { background: var(--grade-b); }
+  .gpill.C { background: var(--grade-c); }
+
+  /* Section + table */
+  .section {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    margin-bottom: 12px; overflow: hidden;
+  }
+  .section-head {
+    padding: 12px 14px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .section-head h2 { margin: 0; font-size: 14px; font-weight: 700; color: var(--ink); }
+  .section-head .count { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  thead th {
+    background: #f8fafc; color: var(--ink-2);
+    font-size: 11px; font-weight: 700; text-align: left;
+    padding: 10px 10px; border-bottom: 1px solid var(--line);
+    white-space: nowrap; letter-spacing: 0.02em;
+    cursor: pointer; user-select: none; position: relative;
+  }
+  thead th:hover { background: #eef2f7; }
+  thead th.right { text-align: right; padding-right: 18px; }
+  thead th.sorted::after {
+    content: ''; position: absolute; right: 6px; top: 50%;
+    transform: translateY(-50%); width: 0; height: 0;
+    border-left: 4px solid transparent; border-right: 4px solid transparent;
+  }
+  thead th.sorted.asc::after { border-bottom: 5px solid var(--ink-2); }
+  thead th.sorted.desc::after { border-top: 5px solid var(--ink-2); }
+  tbody td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink-2);
     white-space: nowrap;
   }
-  .tab:hover { color: var(--ink-2); }
-  .tab.active { color: var(--ink); border-bottom-color: var(--ink); }
-  .tab-count {
-    background: var(--rule-soft); color: var(--ink-2);
-    font-size: 11px; font-weight: 500;
-    padding: 1px 7px; border-radius: 999px; margin-left: 6px;
-    font-family: 'JetBrains Mono', monospace;
-  }
+  tbody tr:hover td { background: #f8fafc; }
+  /* 등급별 좌측 컬러 바 */
+  tbody tr td:first-child { border-left: 3px solid transparent; }
+  tbody tr.row-A td:first-child { border-left-color: var(--grade-a); }
+  tbody tr.row-B td:first-child { border-left-color: var(--grade-b); }
+  tbody tr.row-C td:first-child { border-left-color: var(--grade-c); }
 
-  /* ===== Cards / Sections ===== */
-  .card {
-    background: var(--surface); border: 1px solid var(--rule);
-    margin-bottom: 16px;
-  }
-  .card-head {
-    padding: 14px 20px; border-bottom: 1px solid var(--rule-soft);
-    display: flex; justify-content: space-between; align-items: center;
-    flex-wrap: wrap; gap: 8px;
-  }
-  .card-title {
-    font-size: 13px; font-weight: 600; letter-spacing: 0.04em;
-    color: var(--ink); text-transform: uppercase;
-  }
-  .card-body { padding: 20px; }
+  td.right { text-align: right; font-variant-numeric: tabular-nums; }
+  td.name { font-weight: 600; color: var(--ink); }
 
-  /* ===== Tables ===== */
-  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  thead { background: var(--rule-soft); }
-  th {
-    text-align: left; padding: 10px 12px;
-    font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
-    color: var(--ink-2); text-transform: uppercase;
-    border-bottom: 1px solid var(--rule);
-    white-space: nowrap; cursor: pointer; user-select: none;
-    position: sticky; top: 0; background: var(--rule-soft);
+  /* 등급 태그 */
+  .grade-tag {
+    display: inline-block; min-width: 22px; height: 22px;
+    line-height: 22px; padding: 0 6px;
+    text-align: center; border-radius: 5px;
+    font-weight: 800; font-size: 11px; color: #fff;
+    letter-spacing: 0.02em;
   }
-  th:hover { color: var(--ink); }
-  th.sort-asc::after { content: " ↑"; color: var(--accent); }
-  th.sort-desc::after { content: " ↓"; color: var(--accent); }
-  td {
-    padding: 10px 12px; border-bottom: 1px solid var(--rule-soft);
-    color: var(--ink-2); white-space: nowrap;
-  }
-  tr:hover td { background: var(--rule-soft); }
-  td.right, th.right { text-align: right; }
-  td.center, th.center { text-align: center; }
-  .badge {
-    display: inline-flex; align-items: center;
-    padding: 2px 8px; font-size: 11px; font-weight: 500;
-    border-radius: 999px; letter-spacing: 0.02em;
-    border: 1px solid;
-  }
-  .badge.A { color: #064E3B; background: #D1FAE5; border-color: #6EE7B7; }
-  .badge.B { color: #1E3A8A; background: #DBEAFE; border-color: #93C5FD; }
-  .badge.C { color: #525252; background: #F4F4F5; border-color: #D4D4D8; }
-  .pill {
-    display: inline-block; padding: 2px 8px;
-    font-size: 11px; font-weight: 500; border-radius: 2px;
-    font-family: 'JetBrains Mono', monospace;
-  }
-  .pill.good { color: var(--good); background: var(--good-soft); }
-  .pill.warn { color: var(--warn); background: var(--warn-soft); }
-  .pill.bad { color: var(--bad); background: var(--bad-soft); }
-  .pill.muted { color: var(--ink-3); background: var(--rule-soft); }
+  .grade-tag.A { background: var(--grade-a); }
+  .grade-tag.B { background: var(--grade-b); }
+  .grade-tag.C { background: var(--grade-c); }
 
-  /* ===== Special OIC summary ===== */
-  .oic-banner {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    background: var(--ink); color: var(--bg);
-    padding: 0;
-    margin-bottom: 16px;
+  /* 데이터 바 셀 - 엑셀 데이터바 스타일 */
+  .databar {
+    position: relative;
+    display: inline-block;
+    min-width: 72px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    overflow: hidden;
+    isolation: isolate;
   }
-  .oic-stat {
-    padding: 18px 22px; border-right: 1px solid #1E293B;
+  .databar::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: var(--pct, 0%);
+    background: var(--col, #94a3b8);
+    opacity: 0.20;
+    border-radius: 4px;
+    z-index: -1;
   }
-  .oic-stat:last-child { border-right: none; }
-  .oic-stat-label {
-    font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
-    color: #94A3B8; text-transform: uppercase; margin-bottom: 6px;
-  }
-  .oic-stat-value { font-size: 24px; font-weight: 500; letter-spacing: -0.02em; }
-  .oic-stat-sub { font-size: 12px; color: #94A3B8; margin-top: 4px; }
+  .databar.lvl-good { color: #15803d; }
+  .databar.lvl-good::before { background: #16a34a; }
+  .databar.lvl-ok   { color: #1d4ed8; }
+  .databar.lvl-ok::before   { background: #2563eb; }
+  .databar.lvl-warn { color: #b45309; }
+  .databar.lvl-warn::before { background: #f59e0b; }
+  .databar.lvl-bad  { color: #b91c1c; }
+  .databar.lvl-bad::before  { background: #dc2626; }
+  .databar.lvl-none { color: var(--ink-3); }
 
-  .empty {
-    text-align: center; padding: 60px 20px; color: var(--ink-3);
-    font-size: 13px;
-  }
+  .date-cell { color: var(--ink-3); font-variant-numeric: tabular-nums; font-size: 12px; }
 
-  /* ===== Hidden ===== */
-  .hidden { display: none !important; }
-
-  /* Responsive table on mobile - keep horizontal scroll */
-  @media (max-width: 720px) {
-    .app { padding: 20px 16px 48px; }
-    .kpi { padding: 16px; min-height: 90px; }
-    .kpi-value { font-size: 22px; }
-    .card-body { padding: 16px; }
-    th, td { padding: 8px 10px; font-size: 12px; }
-    .meta { font-size: 12px; gap: 10px 16px; }
+  /* Loader */
+  .state { text-align: center; padding: 40px 20px; color: var(--ink-3); font-size: 13px; }
+  .state .spin {
+    display: inline-block; width: 22px; height: 22px;
+    border: 2.5px solid #cbd5e1; border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 8px;
   }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .state.error { color: var(--bad); }
+  .state .upload-zone {
+    margin-top: 14px; padding: 16px;
+    border: 2px dashed var(--line-2); border-radius: 8px;
+    background: #f8fafc; cursor: pointer; color: var(--ink-2);
+  }
+  .state .upload-zone:hover { background: #f1f5f9; border-color: var(--accent); }
+  .state input[type="file"] { display: none; }
+
+  footer { text-align: center; color: var(--ink-3); font-size: 11px; padding: 20px 12px 32px; }
 </style>
 </head>
 <body>
 
-<!-- Loading / file gate -->
-<div class="gate" id="gate">
-  <div class="gate-card" id="gate-card">
-    <div class="spinner" id="gate-spinner"></div>
-    <h1>데이터 불러오는 중</h1>
-    <p id="gate-msg">잠시만 기다려주세요…</p>
-    <div id="gate-upload" class="hidden">
-      <p>엑셀 파일을 선택해주세요.<br>(<span class="num">백부장님_보고용.xlsx</span>)</p>
-      <label class="upload-btn">
-        파일 선택
-        <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none" />
-      </label>
-      <div class="gate-error hidden" id="gate-error"></div>
-    </div>
+<header>
+  <div class="header-inner">
+    <h1>네트워크 · 공립병원 사업부</h1>
+    <span class="sub">월간 영업 대시보드</span>
+    <span class="meta" id="meta">데이터 로딩 중...</span>
   </div>
+</header>
+
+<div class="tabs" role="tablist">
+  <button class="tab active" data-panel="contract">계약이행율</button>
+  <button class="tab" data-panel="oic">OIC 현황</button>
 </div>
 
-<!-- Main app -->
-<div class="app hidden" id="app">
-
-  <header class="hero">
-    <div class="eyebrow">奥齿泰 · 네트워크 / 공립병원 사업부</div>
-    <h1 class="title">백부장님을 <span class="accent serif">위한</span> 보고 대시보드</h1>
-    <div class="meta">
-      <div class="meta-item"><span class="dot"></span> <span>마지막 업데이트 <strong id="last-updated">–</strong></span></div>
-      <div class="meta-item"><span>대상 계약 <strong class="num" id="hero-count">–</strong></span></div>
-      <div class="meta-item"><span>사업부 <strong class="num" id="hero-divs">–</strong></span></div>
-    </div>
-  </header>
-
-  <!-- KPI -->
-  <section class="kpi-section">
-    <div class="section-head">
-      <div class="section-title">핵심 지표</div>
-      <div class="section-sub serif" id="kpi-context">— 전체 기준 —</div>
-    </div>
-    <div class="kpi-grid" id="kpi-grid"></div>
-  </section>
-
-  <!-- Filter -->
-  <div class="filter-bar">
-    <div>
-      <label class="filter-label">사업부</label>
-      <div class="chips" id="filter-divs"></div>
-    </div>
-    <div>
-      <label class="filter-label">등급</label>
-      <div class="chips" id="filter-grades"></div>
-    </div>
-    <div>
-      <label class="filter-label">그룹명 검색</label>
-      <input type="text" class="search-input" id="filter-search" placeholder="검색어 입력…" />
-    </div>
+<main>
+  <div id="loading" class="state">
+    <div class="spin"></div>
+    <div>데이터를 불러오는 중입니다...</div>
   </div>
 
-  <!-- Tabs -->
-  <div class="tabs">
-    <button class="tab active" data-tab="contract">계약 이행 현황 <span class="tab-count" id="cnt-contract">–</span></button>
-    <button class="tab" data-tab="oic">OIC 현황 <span class="tab-count" id="cnt-oic">–</span></button>
+  <div id="error" class="state error" style="display:none">
+    <div style="font-size:15px;font-weight:600;margin-bottom:6px">데이터를 불러올 수 없습니다</div>
+    <div id="error-msg" style="font-size:12px;margin-bottom:12px"></div>
+    <label class="upload-zone" for="file-input">
+      <div style="font-weight:600;color:var(--ink);margin-bottom:4px">📂 엑셀 파일 직접 업로드</div>
+      <div style="font-size:11px">여기를 눌러 data.xlsx 파일을 선택하세요</div>
+      <input type="file" id="file-input" accept=".xlsx,.xls" />
+    </label>
   </div>
 
-  <!-- Tab content: 계약이행율 -->
-  <div id="tab-contract">
-    <div class="card">
-      <div class="card-head">
-        <div class="card-title">계약별 상세</div>
-        <div class="section-sub" id="contract-summary">–</div>
+  <!-- 계약이행율 패널 -->
+  <div id="panel-contract" class="panel active" style="display:none">
+    <div class="filters">
+      <div>
+        <label>사업부</label>
+        <select id="f-c-div"><option value="">전체 사업부</option></select>
       </div>
+      <div>
+        <label>등급</label>
+        <select id="f-c-grade">
+          <option value="">전체 등급</option>
+          <option value="A">A</option>
+          <option value="B">B</option>
+          <option value="C">C</option>
+        </select>
+      </div>
+      <div>
+        <label>그룹명 검색</label>
+        <input type="text" id="f-c-name" placeholder="고객/그룹명 입력" />
+      </div>
+      <button class="reset-btn" data-reset="contract">초기화</button>
+    </div>
+
+    <div class="kpis" id="kpi-contract"></div>
+
+    <div class="section">
+      <div class="section-head"><h2>고객별 상세</h2><span class="count" id="row-count-c"></span></div>
       <div class="table-wrap">
-        <table id="table-contract">
-          <thead></thead>
+        <table id="tbl-contract">
+          <thead><tr>
+            <th data-key="그룹명">그룹명</th>
+            <th data-key="사업부">사업부</th>
+            <th data-key="등급">등급</th>
+            <th data-key="유효기간">유효기간</th>
+            <th data-key="갱신기간">갱신기간</th>
+            <th data-key="계약횟수" class="right">계약횟수</th>
+            <th data-key="매출액" class="right">매출액(¥)</th>
+            <th data-key="fixture총" class="right">Fixture 총수량</th>
+            <th data-key="fixture0" class="right">Fixture (0원제외)</th>
+            <th data-key="수금액" class="right">수금액(¥)</th>
+            <th data-key="수금율" class="right">수금율</th>
+            <th data-key="계약달성율" class="right">계약달성율</th>
+          </tr></thead>
           <tbody></tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- Tab content: OIC -->
-  <div id="tab-oic" class="hidden">
-    <div class="oic-banner" id="oic-banner"></div>
-    <div class="card">
-      <div class="card-head">
-        <div class="card-title">특별 사용 내역</div>
-        <div class="section-sub serif">사업부 비귀속</div>
+  <!-- OIC 패널 -->
+  <div id="panel-oic" class="panel" style="display:none">
+    <div class="filters">
+      <div>
+        <label>사업부</label>
+        <select id="f-o-div"><option value="">전체 사업부</option></select>
       </div>
-      <div class="card-body" id="oic-special"></div>
+      <div>
+        <label>등급</label>
+        <select id="f-o-grade">
+          <option value="">전체 등급</option>
+          <option value="A">A</option>
+          <option value="B">B</option>
+          <option value="C">C</option>
+        </select>
+      </div>
+      <div>
+        <label>그룹명 검색</label>
+        <input type="text" id="f-o-name" placeholder="고객/그룹명 입력" />
+      </div>
+      <button class="reset-btn" data-reset="oic">초기화</button>
     </div>
-    <div class="card">
-      <div class="card-head">
-        <div class="card-title">그룹별 OIC 상세</div>
-        <div class="section-sub" id="oic-summary">–</div>
-      </div>
+
+    <div class="kpis" id="kpi-oic"></div>
+
+    <div class="section">
+      <div class="section-head"><h2>고객별 OIC 상세</h2><span class="count" id="row-count-o"></span></div>
       <div class="table-wrap">
-        <table id="table-oic">
-          <thead></thead>
+        <table id="tbl-oic">
+          <thead><tr>
+            <th data-key="그룹명">그룹명</th>
+            <th data-key="사업부">사업부</th>
+            <th data-key="등급">등급</th>
+            <th data-key="계약횟수" class="right">계약횟수</th>
+            <th data-key="국내증정" class="right">국내 증정</th>
+            <th data-key="해외증정" class="right">해외 증정</th>
+            <th data-key="국내사용" class="right">국내 사용</th>
+            <th data-key="해외사용" class="right">해외 사용</th>
+            <th data-key="국내잔여" class="right">국내 잔여</th>
+            <th data-key="해외잔여" class="right">해외 잔여</th>
+            <th data-key="국내소진율" class="right">국내 소진율</th>
+            <th data-key="해외소진율" class="right">해외 소진율</th>
+            <th data-key="fixture교환" class="right">Fix. 기교환</th>
+            <th data-key="fixture가능" class="right">Fix. 가능</th>
+          </tr></thead>
           <tbody></tbody>
         </table>
       </div>
     </div>
   </div>
+</main>
 
-  <footer style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--rule); color: var(--ink-3); font-size: 12px; text-align: center;">
-    <div class="serif" style="font-size: 14px; margin-bottom: 4px;">Internal Reporting</div>
-    <div>Osstem Implant China · 网络 / 公立病院 事业部</div>
-  </footer>
-</div>
+<footer>
+  Osstem Implant China · 네트워크 · 공립병원 사업부
+</footer>
 
 <script>
-/* ============================================================
-   STATE
-============================================================ */
 const STATE = {
-  contracts: [],   // contract performance rows
-  oic: [],         // OIC rows
-  oicTotal: null,  // TOTAL row
-  oicSpecial: [],  // 공립사용/시장부사용 etc
-  filters: {
-    divs: new Set(),    // selected 사업부 (empty = all)
-    grades: new Set(),  // selected 등급 (empty = all)
-    search: '',
-  },
-  divList: [],
-  gradeList: ['A', 'B', 'C'],
-  sort: { contract: { col: 'sales', dir: 'desc' }, oic: { col: 'group', dir: 'asc' } },
-  lastUpdated: null,
+  contractAll: [],
+  oicAll: [],
+  oicTotal: null,
+  oicSpecial: [],
+  contractFilter: { div: '', grade: '', name: '' },
+  oicFilter: { div: '', grade: '', name: '' },
+  contractSort: { key: '매출액', dir: 'desc' },
+  oicSort: { key: '국내사용', dir: 'desc' },
+  fileDate: null,
 };
 
-/* ============================================================
-   FORMATTERS
-============================================================ */
-const fmt = {
-  num: (n) => (n == null || isNaN(n)) ? '–' : Math.round(n).toLocaleString('ko-KR'),
-  numSign: (n) => (n == null || isNaN(n)) ? '–' : (n>=0?'':'-') + Math.abs(Math.round(n)).toLocaleString('ko-KR'),
-  money: (n) => (n == null || isNaN(n)) ? '–' : Math.round(n).toLocaleString('ko-KR'),
-  pct: (n) => (n == null || isNaN(n)) ? '–' : (n*100).toFixed(1) + '%',
-  pct0: (n) => (n == null || isNaN(n)) ? '–' : (n*100).toFixed(0) + '%',
-  date: (d) => {
-    if (!d) return '–';
-    if (typeof d === 'string') return d;
-    if (d instanceof Date) return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    if (typeof d === 'number') {
-      // Excel serial date
-      const epoch = new Date(1899, 11, 30);
-      const dt = new Date(epoch.getTime() + d*86400000);
-      return fmt.date(dt);
-    }
-    return String(d);
-  },
-  shortDiv: (d) => d ? d.replace('事业部','') : d,
+const fmtInt = n => (n == null || isNaN(n)) ? '-' : Math.round(n).toLocaleString('ko-KR');
+const fmtMoney = n => (n == null || isNaN(n)) ? '-' : Math.round(n).toLocaleString('ko-KR');
+const fmtMoneyShort = n => {
+  if (n == null || isNaN(n)) return '-';
+  const a = Math.abs(n);
+  if (a >= 1e8) return (n/1e8).toFixed(2).replace(/\.?0+$/, '') + '억';
+  if (a >= 1e4) return Math.round(n/1e4).toLocaleString('ko-KR') + '만';
+  return Math.round(n).toLocaleString('ko-KR');
+};
+const fmtPct = n => (n == null || isNaN(n)) ? '-' : (n*100).toFixed(1) + '%';
+const fmtDate = d => {
+  if (!d) return '-';
+  if (d instanceof Date && !isNaN(d)) {
+    return d.getFullYear() + '-' +
+           String(d.getMonth()+1).padStart(2,'0') + '-' +
+           String(d.getDate()).padStart(2,'0');
+  }
+  if (typeof d === 'string') return d.split(' ')[0].split('T')[0];
+  return String(d);
 };
 
-function ratePill(rate) {
-  if (rate == null || isNaN(rate)) return `<span class="pill muted">–</span>`;
-  const cls = rate >= 1.0 ? 'good' : rate >= 0.7 ? 'warn' : 'bad';
-  return `<span class="pill ${cls}">${(rate*100).toFixed(0)}%</span>`;
-}
-function fixturePill(rate) {
-  if (rate == null || isNaN(rate)) return `<span class="pill muted">–</span>`;
-  const cls = rate >= 1.0 ? 'good' : rate >= 0.5 ? 'warn' : 'bad';
-  return `<span class="pill ${cls}">${(rate*100).toFixed(0)}%</span>`;
-}
-
-/* ============================================================
-   PARSE EXCEL
-============================================================ */
-function parseWorkbook(wb) {
-  // -------- 계약이행율 --------
-  const sheet1 = wb.Sheets['계약이행율'];
-  if (!sheet1) throw new Error('"계약이행율" 시트를 찾을 수 없습니다.');
-  const arr1 = XLSX.utils.sheet_to_json(sheet1, { header: 1, defval: null, raw: true });
-  // Header is at index 2 (row 3); data from index 3
-  const contracts = [];
-  for (let i = 3; i < arr1.length; i++) {
-    const r = arr1[i];
-    if (!r || !r[1]) continue; // group name required
-    contracts.push({
-      contractId: r[0] || '',
-      group: r[1],
-      div: r[2],
-      grade: r[3],
-      signDate: r[4],
-      signMonth: r[5],
-      validity: r[6],
-      extensions: r[7],
-      sales: toNum(r[8]),
-      fixtureTotal: toNum(r[9]),
-      fixtureNoZero: toNum(r[10]),
-      collected: toNum(r[11]),
-      contractAmount: toNum(r[12]),
-      collectRate: toNum(r[13]),
-      fixtureRate: toNum(r[14]),
-    });
+/* 데이터 막대 - 비율 → CSS 변수 + 색상 레벨 */
+function dataBar(rate) {
+  if (rate == null || isNaN(rate)) {
+    return `<span class="databar lvl-none">-</span>`;
   }
-  STATE.contracts = contracts;
+  const pct = Math.min(Math.max(rate, 0), 1) * 100; // 0~100 cap
+  let lvl;
+  if (rate >= 1) lvl = 'good';
+  else if (rate >= 0.7) lvl = 'ok';
+  else if (rate >= 0.4) lvl = 'warn';
+  else lvl = 'bad';
+  return `<span class="databar lvl-${lvl}" style="--pct:${pct.toFixed(1)}%;">${(rate*100).toFixed(1)}%</span>`;
+}
 
-  // -------- OIC --------
-  const sheet2 = wb.Sheets['OIC'];
-  if (!sheet2) throw new Error('"OIC" 시트를 찾을 수 없습니다.');
-  const arr2 = XLSX.utils.sheet_to_json(sheet2, { header: 1, defval: null, raw: true });
-  // Row 0 has 취소계약제외 marker + count, Row 1+2 are headers, Row 3 is TOTAL,
-  // Rows 4-5 are 공립사용/시장부사용, Row 6+ data
-  const oic = [];
-  const special = [];
-  let total = null;
+async function loadData() {
+  try {
+    const res = await fetch('data.xlsx?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw new Error('파일을 찾을 수 없습니다 (HTTP ' + res.status + ')');
+    const buf = await res.arrayBuffer();
+    parseWorkbook(buf);
+    const lastMod = res.headers.get('last-modified');
+    if (lastMod) STATE.fileDate = new Date(lastMod);
+    showDashboard();
+  } catch (err) {
+    console.error(err);
+    showError(err.message);
+  }
+}
 
-  for (let i = 3; i < arr2.length; i++) {
-    const r = arr2[i];
-    if (!r) continue;
-    const groupName = r[1];
-    if (!groupName) continue;
+function parseWorkbook(buf) {
+  const wb = XLSX.read(buf, { type: 'array', cellDates: true });
 
-    const item = {
-      group: groupName,
-      div: r[2],
-      contractId: r[3],
-      grade: r[4],
-      contractCount: toNum(r[5]),
-      grantDomestic: toNum(r[6]),
-      grantOverseas: toNum(r[7]),
-      usedDomestic: toNum(r[8]),
-      usedOverseas: toNum(r[9]),
-      remainDomestic: toNum(r[10]),
-      remainOverseas: toNum(r[11]),
-      consumeDomestic: toNum(r[12]),
-      consumeOverseas: toNum(r[13]),
-      fixGifted: toNum(r[14]),
-      fixExchangeable: toNum(r[15]),
-    };
-
-    if (groupName === 'TOTAL') {
-      total = item;
-    } else if (groupName === '공립사용' || groupName === '시장부사용' ||
-               String(groupName).indexOf('사용') !== -1 && !item.div) {
-      special.push(item);
-    } else {
-      oic.push(item);
+  // 계약이행율
+  const wsC = wb.Sheets['계약이행율'];
+  if (wsC) {
+    const rows = XLSX.utils.sheet_to_json(wsC, { header: 1, defval: null });
+    const data = [];
+    for (let i = 3; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || !r[1] || !r[2]) continue;
+      data.push({
+        '그룹명': String(r[1]).trim(),
+        '사업부': String(r[2]).trim(),
+        '등급': r[3] ? String(r[3]).trim() : '',
+        '유효기간': r[4],
+        '갱신기간': r[6],
+        '계약횟수': toNum(r[7]),
+        '매출액': toNum(r[8]),
+        'fixture총': toNum(r[9]),
+        'fixture0': toNum(r[10]),
+        '수금액': toNum(r[11]),
+        '계약액': toNum(r[12]),
+        '수금율': toNum(r[13]),
+        '계약달성율': toNum(r[14]),
+      });
     }
+    STATE.contractAll = data;
   }
-  STATE.oic = oic;
-  STATE.oicSpecial = special;
-  STATE.oicTotal = total;
 
-  // -------- divisions --------
-  const divs = new Set();
-  contracts.forEach(c => c.div && divs.add(c.div));
-  oic.forEach(c => c.div && divs.add(c.div));
-  STATE.divList = Array.from(divs).sort();
+  // OIC
+  const wsO = wb.Sheets['OIC'];
+  if (wsO) {
+    const rows = XLSX.utils.sheet_to_json(wsO, { header: 1, defval: null });
+    const data = [];
+    const special = [];
+    for (let i = 2; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || !r[1]) continue;
+      const groupName = String(r[1]).trim();
+      const item = {
+        '그룹명': groupName,
+        '사업부': r[2] ? String(r[2]).trim() : '',
+        '등급': r[4] ? String(r[4]).trim() : '',
+        '계약횟수': toNum(r[5]),
+        '국내증정': toNum(r[6]),
+        '해외증정': toNum(r[7]),
+        '국내사용': toNum(r[8]),
+        '해외사용': toNum(r[9]),
+        '국내잔여': toNum(r[10]),
+        '해외잔여': toNum(r[11]),
+        '국내소진율': toNum(r[12]),
+        '해외소진율': toNum(r[13]),
+        'fixture교환': toNum(r[14]),
+        'fixture가능': toNum(r[15]),
+      };
+      if (groupName === 'TOTAL') STATE.oicTotal = item;
+      else if (groupName === '공립사용' || groupName === '시장부사용') special.push(item);
+      else data.push(item);
+    }
+    STATE.oicAll = data;
+    STATE.oicSpecial = special;
+  }
 }
 
 function toNum(v) {
   if (v == null || v === '') return null;
-  if (typeof v === 'number') return v;
-  const n = Number(String(v).replace(/,/g,''));
+  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/,/g, ''));
   return isNaN(n) ? null : n;
 }
 
+function showError(msg) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('error').style.display = 'block';
+  document.getElementById('error-msg').textContent = msg;
+}
+
+function showDashboard() {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('error').style.display = 'none';
+  document.getElementById('panel-contract').style.display = 'block';
+  document.getElementById('panel-oic').style.display = 'none';
+
+  const meta = document.getElementById('meta');
+  const now = STATE.fileDate || new Date();
+  meta.textContent = `최종 업데이트 ${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+
+  populateFilters();
+  renderAll();
+}
+
+function populateFilters() {
+  const cDivs = uniq(STATE.contractAll.map(r => r.사업부)).sort();
+  const oDivs = uniq(STATE.oicAll.map(r => r.사업부).filter(Boolean)).sort();
+
+  document.getElementById('f-c-div').innerHTML =
+    '<option value="">전체 사업부</option>' +
+    cDivs.map(d => `<option value="${d}">${d}</option>`).join('');
+  document.getElementById('f-o-div').innerHTML =
+    '<option value="">전체 사업부</option>' +
+    oDivs.map(d => `<option value="${d}">${d}</option>`).join('');
+}
+
+function uniq(arr) { return [...new Set(arr)]; }
+
+function sortRows(arr, key, dir) {
+  const m = dir === 'asc' ? 1 : -1;
+  return [...arr].sort((a,b) => {
+    const va = a[key], vb = b[key];
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    if (va instanceof Date && vb instanceof Date) return (va - vb) * m;
+    if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * m;
+    return String(va).localeCompare(String(vb), 'ko') * m;
+  });
+}
+
 /* ============================================================
-   FILTER / DERIVED
-============================================================ */
-function filteredContracts() {
-  return STATE.contracts.filter(c => {
-    if (STATE.filters.divs.size > 0 && !STATE.filters.divs.has(c.div)) return false;
-    if (STATE.filters.grades.size > 0 && !STATE.filters.grades.has(c.grade)) return false;
-    if (STATE.filters.search) {
-      const q = STATE.filters.search.toLowerCase();
-      if (!String(c.group||'').toLowerCase().includes(q) &&
-          !String(c.contractId||'').toLowerCase().includes(q)) return false;
-    }
+   계약이행율
+   ============================================================ */
+
+function filteredContract() {
+  const f = STATE.contractFilter;
+  return STATE.contractAll.filter(r => {
+    if (f.div && r.사업부 !== f.div) return false;
+    if (f.grade && r.등급 !== f.grade) return false;
+    if (f.name && !(r.그룹명 || '').toLowerCase().includes(f.name.toLowerCase())) return false;
     return true;
   });
 }
 
-function filteredOic() {
-  return STATE.oic.filter(c => {
-    if (STATE.filters.divs.size > 0 && !STATE.filters.divs.has(c.div)) return false;
-    if (STATE.filters.grades.size > 0 && !STATE.filters.grades.has(c.grade)) return false;
-    if (STATE.filters.search) {
-      const q = STATE.filters.search.toLowerCase();
-      if (!String(c.group||'').toLowerCase().includes(q) &&
-          !String(c.contractId||'').toLowerCase().includes(q)) return false;
-    }
-    return true;
-  });
-}
+function renderContract() {
+  const data = filteredContract();
+  document.getElementById('row-count-c').textContent = `${data.length}개 계약`;
 
-/* ============================================================
-   RENDER: KPI
-============================================================ */
-function renderKpi() {
-  const cs = filteredContracts();
-  const oics = filteredOic();
-  const total = (arr, key) => arr.reduce((s, x) => s + (x[key] || 0), 0);
-  const avg = (arr, key) => {
-    const valid = arr.filter(x => x[key] != null && !isNaN(x[key]));
-    if (!valid.length) return null;
-    return valid.reduce((s,x)=>s+x[key],0) / valid.length;
-  };
+  // KPI 써머리
+  const sumRev = data.reduce((s,r) => s + (r.매출액 || 0), 0);
+  const sumPay = data.reduce((s,r) => s + (r.수금액 || 0), 0);
+  const sumCon = data.reduce((s,r) => s + (r.계약액 || 0), 0);
+  const collectRate = sumCon > 0 ? sumPay / sumCon : null;
+  const achieveRate = sumCon > 0 ? sumRev / sumCon : null;
 
-  const totalSales = total(cs, 'sales');
-  const totalCollected = total(cs, 'collected');
-  const totalContractAmt = total(cs, 'contractAmount');
-  const totalFixture = total(cs, 'fixtureTotal');
-  const overallCollect = totalContractAmt ? totalCollected / totalContractAmt : null;
-  const avgCollectRate = avg(cs, 'collectRate');
-  const avgFixtureRate = avg(cs, 'fixtureRate');
+  const cntA = data.filter(r => r.등급 === 'A').length;
+  const cntB = data.filter(r => r.등급 === 'B').length;
+  const cntC = data.filter(r => r.등급 === 'C').length;
 
-  const grantedD = total(oics, 'grantDomestic');
-  const usedD = total(oics, 'usedDomestic');
-  const grantedO = total(oics, 'grantOverseas');
-  const usedO = total(oics, 'usedOverseas');
+  const collectCls = collectRate >= 1 ? 'good' : collectRate >= 0.7 ? '' : collectRate >= 0.4 ? 'warn' : 'bad';
+  const achieveCls = achieveRate >= 1 ? 'good' : achieveRate >= 0.7 ? '' : achieveRate >= 0.4 ? 'warn' : 'bad';
 
-  document.getElementById('hero-count').textContent = cs.length.toLocaleString();
-  const divsInScope = new Set(cs.map(c=>c.div).filter(Boolean));
-  document.getElementById('hero-divs').textContent = divsInScope.size;
-
-  const ctxText = (() => {
-    const parts = [];
-    if (STATE.filters.divs.size > 0) parts.push(`${STATE.filters.divs.size}개 사업부`);
-    if (STATE.filters.grades.size > 0) parts.push(`등급 ${[...STATE.filters.grades].join('·')}`);
-    if (STATE.filters.search) parts.push(`"${STATE.filters.search}"`);
-    return parts.length ? `— ${parts.join(' / ')} 기준 —` : '— 전체 기준 —';
-  })();
-  document.getElementById('kpi-context').textContent = ctxText;
-
-  const cards = [
-    { label: '총 매출액', value: fmt.money(totalSales), unit: 'CNY', sub: `${cs.length}개 계약` },
-    { label: '총 회수액', value: fmt.money(totalCollected), unit: 'CNY', sub: `합同 ${fmt.money(totalContractAmt)}` },
-    { label: '평균 회수율', value: fmt.pct(avgCollectRate), unit: '', sub: `종합 ${fmt.pct(overallCollect)}` },
-    { label: 'Fixture 달성률', value: fmt.pct(avgFixtureRate), unit: '', sub: `총 ${fmt.num(totalFixture)} ea` },
-    { label: 'OIC 국내 소진', value: grantedD ? fmt.pct0(usedD/grantedD) : '–', unit: '', sub: `${fmt.num(usedD)} / ${fmt.num(grantedD)}` },
-    { label: 'OIC 해외 소진', value: grantedO ? fmt.pct0(usedO/grantedO) : '–', unit: '', sub: `${fmt.num(usedO)} / ${fmt.num(grantedO)}` },
-  ];
-
-  document.getElementById('kpi-grid').innerHTML = cards.map(c => `
-    <div class="kpi">
-      <div class="kpi-label">${c.label}</div>
-      <div>
-        <span class="kpi-value num">${c.value}</span>${c.unit ? `<span class="kpi-unit">${c.unit}</span>` : ''}
-      </div>
-      <div class="kpi-sub">${c.sub}</div>
-    </div>
-  `).join('');
-}
-
-/* ============================================================
-   RENDER: FILTERS
-============================================================ */
-function renderFilters() {
-  const divsEl = document.getElementById('filter-divs');
-  divsEl.innerHTML = '';
-  // "전체" option
-  const allBtn = document.createElement('button');
-  allBtn.className = 'chip' + (STATE.filters.divs.size === 0 ? ' active' : '');
-  allBtn.textContent = '전체';
-  allBtn.onclick = () => { STATE.filters.divs.clear(); rerender(); };
-  divsEl.appendChild(allBtn);
-  STATE.divList.forEach(div => {
-    const btn = document.createElement('button');
-    btn.className = 'chip' + (STATE.filters.divs.has(div) ? ' active' : '');
-    btn.textContent = fmt.shortDiv(div);
-    btn.onclick = () => {
-      if (STATE.filters.divs.has(div)) STATE.filters.divs.delete(div);
-      else STATE.filters.divs.add(div);
-      rerender();
-    };
-    divsEl.appendChild(btn);
-  });
-
-  const gradesEl = document.getElementById('filter-grades');
-  gradesEl.innerHTML = '';
-  const allG = document.createElement('button');
-  allG.className = 'chip' + (STATE.filters.grades.size === 0 ? ' active' : '');
-  allG.textContent = '전체';
-  allG.onclick = () => { STATE.filters.grades.clear(); rerender(); };
-  gradesEl.appendChild(allG);
-  STATE.gradeList.forEach(g => {
-    const btn = document.createElement('button');
-    btn.className = 'chip' + (STATE.filters.grades.has(g) ? ' active' : '');
-    btn.textContent = g;
-    btn.onclick = () => {
-      if (STATE.filters.grades.has(g)) STATE.filters.grades.delete(g);
-      else STATE.filters.grades.add(g);
-      rerender();
-    };
-    gradesEl.appendChild(btn);
-  });
-}
-
-/* ============================================================
-   RENDER: TABLES
-============================================================ */
-const CONTRACT_COLS = [
-  { key: 'group', label: '그룹', sticky: true },
-  { key: 'div', label: '사업부', fmt: fmt.shortDiv },
-  { key: 'grade', label: '등급', center: true, render: (v) => v ? `<span class="badge ${v}">${v}</span>` : '–' },
-  { key: 'contractId', label: '계약번호', mono: true },
-  { key: 'signDate', label: '签約日', fmt: fmt.date },
-  { key: 'sales', label: '매출 (CNY)', right: true, mono: true, fmt: fmt.money },
-  { key: 'collected', label: '회수액', right: true, mono: true, fmt: fmt.money },
-  { key: 'contractAmount', label: '합同금액', right: true, mono: true, fmt: fmt.money },
-  { key: 'collectRate', label: '회수율', right: true, render: (v) => ratePill(v) },
-  { key: 'fixtureTotal', label: 'Fixture', right: true, mono: true, fmt: fmt.num },
-  { key: 'fixtureRate', label: 'Fix 달성률', right: true, render: (v) => fixturePill(v) },
-];
-
-const OIC_COLS = [
-  { key: 'group', label: '그룹', sticky: true },
-  { key: 'div', label: '사업부', fmt: fmt.shortDiv },
-  { key: 'grade', label: '등급', center: true, render: (v) => v ? `<span class="badge ${v}">${v}</span>` : '–' },
-  { key: 'contractId', label: '계약번호', mono: true },
-  { key: 'grantDomestic', label: '증정 (国内)', right: true, mono: true, fmt: fmt.num },
-  { key: 'usedDomestic', label: '사용 (国内)', right: true, mono: true, fmt: fmt.num },
-  { key: 'remainDomestic', label: '잔여 (国内)', right: true, mono: true, fmt: fmt.numSign },
-  { key: 'consumeDomestic', label: '소진율 (国内)', right: true, render: (v) => v != null ? fmt.pct(v) : '–' },
-  { key: 'grantOverseas', label: '증정 (海外)', right: true, mono: true, fmt: fmt.num },
-  { key: 'usedOverseas', label: '사용 (海外)', right: true, mono: true, fmt: fmt.num },
-  { key: 'remainOverseas', label: '잔여 (海外)', right: true, mono: true, fmt: fmt.numSign },
-  { key: 'consumeOverseas', label: '소진율 (海外)', right: true, render: (v) => v != null ? fmt.pct(v) : '–' },
-  { key: 'fixGifted', label: 'Fix 증정', right: true, mono: true, fmt: fmt.num },
-];
-
-function renderContractTable() {
-  const data = filteredContracts();
-  // Sort
-  const { col, dir } = STATE.sort.contract;
-  data.sort((a,b) => {
-    let va = a[col], vb = b[col];
-    if (va == null) va = dir === 'asc' ? Infinity : -Infinity;
-    if (vb == null) vb = dir === 'asc' ? Infinity : -Infinity;
-    if (typeof va === 'string') return dir === 'asc' ? va.localeCompare(vb,'zh') : vb.localeCompare(va,'zh');
-    return dir === 'asc' ? va - vb : vb - va;
-  });
-
-  const t = document.getElementById('table-contract');
-  t.querySelector('thead').innerHTML = '<tr>' + CONTRACT_COLS.map(c => {
-    const sortCls = STATE.sort.contract.col === c.key ? (STATE.sort.contract.dir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
-    const align = c.right ? 'right' : c.center ? 'center' : '';
-    return `<th class="${align} ${sortCls}" data-col="${c.key}">${c.label}</th>`;
-  }).join('') + '</tr>';
-
-  t.querySelectorAll('thead th').forEach(th => {
-    th.onclick = () => {
-      const col = th.dataset.col;
-      if (STATE.sort.contract.col === col) STATE.sort.contract.dir = STATE.sort.contract.dir === 'asc' ? 'desc' : 'asc';
-      else { STATE.sort.contract.col = col; STATE.sort.contract.dir = 'desc'; }
-      renderContractTable();
-    };
-  });
-
-  if (data.length === 0) {
-    t.querySelector('tbody').innerHTML = `<tr><td colspan="${CONTRACT_COLS.length}" class="empty">결과 없음</td></tr>`;
-  } else {
-    t.querySelector('tbody').innerHTML = data.map(row => '<tr>' + CONTRACT_COLS.map(c => {
-      const v = row[c.key];
-      const align = c.right ? 'right' : c.center ? 'center' : '';
-      const monoCls = c.mono ? 'num' : '';
-      const content = c.render ? c.render(v) : (c.fmt ? c.fmt(v) : (v ?? '–'));
-      return `<td class="${align} ${monoCls}">${content}</td>`;
-    }).join('') + '</tr>').join('');
-  }
-
-  document.getElementById('contract-summary').textContent = `${data.length}개 계약 · 매출 ${fmt.money(data.reduce((s,c)=>s+(c.sales||0),0))} CNY`;
-  document.getElementById('cnt-contract').textContent = data.length;
-}
-
-function renderOicTable() {
-  const data = filteredOic();
-  const { col, dir } = STATE.sort.oic;
-  data.sort((a,b) => {
-    let va = a[col], vb = b[col];
-    if (va == null) va = dir === 'asc' ? Infinity : -Infinity;
-    if (vb == null) vb = dir === 'asc' ? Infinity : -Infinity;
-    if (typeof va === 'string') return dir === 'asc' ? va.localeCompare(vb,'zh') : vb.localeCompare(va,'zh');
-    return dir === 'asc' ? va - vb : vb - va;
-  });
-
-  const t = document.getElementById('table-oic');
-  t.querySelector('thead').innerHTML = '<tr>' + OIC_COLS.map(c => {
-    const sortCls = STATE.sort.oic.col === c.key ? (STATE.sort.oic.dir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
-    const align = c.right ? 'right' : c.center ? 'center' : '';
-    return `<th class="${align} ${sortCls}" data-col="${c.key}">${c.label}</th>`;
-  }).join('') + '</tr>';
-
-  t.querySelectorAll('thead th').forEach(th => {
-    th.onclick = () => {
-      const col = th.dataset.col;
-      if (STATE.sort.oic.col === col) STATE.sort.oic.dir = STATE.sort.oic.dir === 'asc' ? 'desc' : 'asc';
-      else { STATE.sort.oic.col = col; STATE.sort.oic.dir = 'desc'; }
-      renderOicTable();
-    };
-  });
-
-  if (data.length === 0) {
-    t.querySelector('tbody').innerHTML = `<tr><td colspan="${OIC_COLS.length}" class="empty">결과 없음</td></tr>`;
-  } else {
-    t.querySelector('tbody').innerHTML = data.map(row => '<tr>' + OIC_COLS.map(c => {
-      const v = row[c.key];
-      const align = c.right ? 'right' : c.center ? 'center' : '';
-      const monoCls = c.mono ? 'num' : '';
-      const content = c.render ? c.render(v) : (c.fmt ? c.fmt(v) : (v ?? '–'));
-      return `<td class="${align} ${monoCls}">${content}</td>`;
-    }).join('') + '</tr>').join('');
-  }
-  document.getElementById('cnt-oic').textContent = data.length;
-
-  // OIC banner (always shows total — uses TOTAL row from sheet, scoped to filtered set if filtered)
-  const isFiltered = STATE.filters.divs.size > 0 || STATE.filters.grades.size > 0 || STATE.filters.search;
-  let banner;
-  if (isFiltered) {
-    const sum = (k) => data.reduce((s,x)=>s+(x[k]||0),0);
-    banner = {
-      contracts: sum('contractCount') || data.length,
-      gD: sum('grantDomestic'), uD: sum('usedDomestic'),
-      gO: sum('grantOverseas'), uO: sum('usedOverseas'),
-      label: '필터 적용 합계',
-    };
-  } else {
-    const t = STATE.oicTotal || {};
-    banner = {
-      contracts: t.contractCount,
-      gD: t.grantDomestic, uD: t.usedDomestic,
-      gO: t.grantOverseas, uO: t.usedOverseas,
-      label: '전체 (취소계약 제외)',
-    };
-  }
-
-  document.getElementById('oic-banner').innerHTML = `
-    <div class="oic-stat">
-      <div class="oic-stat-label">${banner.label}</div>
-      <div class="oic-stat-value num">${fmt.num(banner.contracts)}</div>
-      <div class="oic-stat-sub">계약 건수</div>
-    </div>
-    <div class="oic-stat">
-      <div class="oic-stat-label">국내 OIC</div>
-      <div class="oic-stat-value num">${fmt.num(banner.uD)} / ${fmt.num(banner.gD)}</div>
-      <div class="oic-stat-sub">소진율 ${banner.gD ? fmt.pct(banner.uD/banner.gD) : '–'}</div>
-    </div>
-    <div class="oic-stat">
-      <div class="oic-stat-label">해외 OIC</div>
-      <div class="oic-stat-value num">${fmt.num(banner.uO)} / ${fmt.num(banner.gO)}</div>
-      <div class="oic-stat-sub">소진율 ${banner.gO ? fmt.pct(banner.uO/banner.gO) : '–'}</div>
-    </div>
-    <div class="oic-stat">
-      <div class="oic-stat-label">잔여</div>
-      <div class="oic-stat-value num">${fmt.num((banner.gD||0)-(banner.uD||0))} <span style="color:#94A3B8;font-size:14px">国内</span></div>
-      <div class="oic-stat-sub">+ ${fmt.num((banner.gO||0)-(banner.uO||0))} 海外</div>
-    </div>
+  document.getElementById('kpi-contract').innerHTML = `
+    <div class="kpi"><div class="label">계약 건수</div>
+      <div class="value num">${data.length}<span class="unit">건</span></div>
+      <div class="sub">
+        <span class="gpill A">A ${cntA}</span><span class="gpill B">B ${cntB}</span><span class="gpill C">C ${cntC}</span>
+      </div></div>
+    <div class="kpi"><div class="label">총 매출액</div>
+      <div class="value num">${fmtMoneyShort(sumRev)}<span class="unit">¥</span></div>
+      <div class="sub">${fmtMoney(sumRev)} CNY</div></div>
+    <div class="kpi"><div class="label">총 수금액</div>
+      <div class="value num">${fmtMoneyShort(sumPay)}<span class="unit">¥</span></div>
+      <div class="sub">${fmtMoney(sumPay)} CNY</div></div>
+    <div class="kpi ${collectCls}"><div class="label">수금율 (수금 / 계약)</div>
+      <div class="value num">${fmtPct(collectRate)}</div>
+      <div class="sub">계약 ${fmtMoneyShort(sumCon)} ¥</div></div>
+    <div class="kpi ${achieveCls}"><div class="label">계약달성율 (매출 / 계약)</div>
+      <div class="value num">${fmtPct(achieveRate)}</div>
+      <div class="sub">계약 ${fmtMoneyShort(sumCon)} ¥</div></div>
   `;
 
-  // Special rows (공립사용 / 시장부사용)
-  const sp = STATE.oicSpecial || [];
-  const specialEl = document.getElementById('oic-special');
-  if (sp.length === 0) {
-    specialEl.innerHTML = `<div class="empty" style="padding: 20px 0;">특별 사용 내역 없음</div>`;
+  // 테이블
+  document.querySelectorAll('#tbl-contract thead th').forEach(th => {
+    th.classList.remove('sorted', 'asc', 'desc');
+    if (th.dataset.key === STATE.contractSort.key) {
+      th.classList.add('sorted', STATE.contractSort.dir);
+    }
+  });
+
+  const sorted = sortRows(data, STATE.contractSort.key, STATE.contractSort.dir);
+  const tbody = document.querySelector('#tbl-contract tbody');
+  tbody.innerHTML = sorted.map(r => {
+    const rowCls = r.등급 ? `row-${r.등급}` : '';
+    return `
+    <tr class="${rowCls}">
+      <td class="name" title="${r.그룹명}">${truncate(r.그룹명, 20)}</td>
+      <td>${r.사업부}</td>
+      <td>${r.등급 ? `<span class="grade-tag ${r.등급}">${r.등급}</span>` : '-'}</td>
+      <td class="date-cell">${fmtDate(r.유효기간)}</td>
+      <td class="date-cell">${fmtDate(r.갱신기간)}</td>
+      <td class="right num">${fmtInt(r.계약횟수)}</td>
+      <td class="right num">${fmtMoney(r.매출액)}</td>
+      <td class="right num">${fmtInt(r['fixture총'])}</td>
+      <td class="right num">${fmtInt(r['fixture0'])}</td>
+      <td class="right num">${fmtMoney(r.수금액)}</td>
+      <td class="right">${dataBar(r.수금율)}</td>
+      <td class="right">${dataBar(r.계약달성율)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function truncate(s, n) {
+  if (!s) return '';
+  return s.length > n ? s.slice(0, n) + '…' : s;
+}
+
+/* ============================================================
+   OIC
+   ============================================================ */
+
+function filteredOIC() {
+  const f = STATE.oicFilter;
+  return STATE.oicAll.filter(r => {
+    if (f.div && r.사업부 !== f.div) return false;
+    if (f.grade && r.등급 !== f.grade) return false;
+    if (f.name && !(r.그룹명 || '').toLowerCase().includes(f.name.toLowerCase())) return false;
+    return true;
+  });
+}
+
+function renderOIC() {
+  const data = filteredOIC();
+  document.getElementById('row-count-o').textContent = `${data.length}개 고객`;
+
+  // 합계 - 필터 없으면 TOTAL 행 사용 (공립사용/시장부사용 포함된 회사 전체 수치)
+  const f = STATE.oicFilter;
+  const isFiltered = f.div || f.grade || f.name;
+
+  let dGiven, dUsed, dRem, dRate, oGiven, oUsed, oRem, oRate;
+  if (!isFiltered && STATE.oicTotal) {
+    dGiven = STATE.oicTotal.국내증정;
+    dUsed = STATE.oicTotal.국내사용;
+    dRem = STATE.oicTotal.국내잔여;
+    dRate = STATE.oicTotal.국내소진율;
+    oGiven = STATE.oicTotal.해외증정;
+    oUsed = STATE.oicTotal.해외사용;
+    oRem = STATE.oicTotal.해외잔여;
+    oRate = STATE.oicTotal.해외소진율;
   } else {
-    specialEl.innerHTML = `
-      <table style="width:100%; border-collapse:collapse; font-size:13px;">
-        <tbody>
-          ${sp.map(s => `
-            <tr style="border-bottom:1px solid var(--rule-soft)">
-              <td style="padding:10px 4px; font-weight:500; color:var(--ink)">${s.group}</td>
-              <td style="padding:10px 4px; text-align:right" class="num">국내 ${fmt.num(s.usedDomestic)}</td>
-              <td style="padding:10px 4px; text-align:right; color:var(--ink-3)" class="num">해외 ${fmt.num(s.usedOverseas)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-      <div style="font-size:11px; color:var(--ink-3); margin-top:12px; padding-top:10px; border-top:1px solid var(--rule-soft)">
-        ※ 사업부에 속하지 않는 본사/공립 직접 사용분
-      </div>
-    `;
+    dGiven = sumKey(data, '국내증정');
+    dUsed = sumKey(data, '국내사용');
+    dRem = sumKey(data, '국내잔여');
+    oGiven = sumKey(data, '해외증정');
+    oUsed = sumKey(data, '해외사용');
+    oRem = sumKey(data, '해외잔여');
+    dRate = dGiven > 0 ? dUsed / dGiven : null;
+    oRate = oGiven > 0 ? oUsed / oGiven : null;
   }
 
-  document.getElementById('oic-summary').textContent = `${data.length}개 그룹`;
+  const dCls = dRate >= 0.5 ? 'good' : dRate >= 0.25 ? 'warn' : 'bad';
+  const oCls = oRate >= 0.5 ? 'good' : oRate >= 0.25 ? 'warn' : 'bad';
+
+  const cntA = data.filter(r => r.등급 === 'A').length;
+  const cntB = data.filter(r => r.등급 === 'B').length;
+  const cntC = data.filter(r => r.등급 === 'C').length;
+
+  document.getElementById('kpi-oic').innerHTML = `
+    <div class="kpi"><div class="label">고객 수</div>
+      <div class="value num">${data.length}<span class="unit">개</span></div>
+      <div class="sub">
+        <span class="gpill A">A ${cntA}</span><span class="gpill B">B ${cntB}</span><span class="gpill C">C ${cntC}</span>
+      </div></div>
+    <div class="kpi"><div class="label">국내 OIC 사용</div>
+      <div class="value num">${fmtInt(dUsed)}<span class="unit">/${fmtInt(dGiven)}</span></div>
+      <div class="sub">잔여 ${fmtInt(dRem)} 매</div></div>
+    <div class="kpi ${dCls}"><div class="label">국내 OIC 소진율</div>
+      <div class="value num">${fmtPct(dRate)}</div>
+      <div class="sub">사용 / 증정가능</div></div>
+    <div class="kpi"><div class="label">해외 OIC 사용</div>
+      <div class="value num">${fmtInt(oUsed)}<span class="unit">/${fmtInt(oGiven)}</span></div>
+      <div class="sub">잔여 ${fmtInt(oRem)} 매</div></div>
+    <div class="kpi ${oCls}"><div class="label">해외 OIC 소진율</div>
+      <div class="value num">${fmtPct(oRate)}</div>
+      <div class="sub">사용 / 증정가능</div></div>
+  `;
+
+  // 테이블
+  document.querySelectorAll('#tbl-oic thead th').forEach(th => {
+    th.classList.remove('sorted', 'asc', 'desc');
+    if (th.dataset.key === STATE.oicSort.key) {
+      th.classList.add('sorted', STATE.oicSort.dir);
+    }
+  });
+
+  const sorted = sortRows(data, STATE.oicSort.key, STATE.oicSort.dir);
+  const tbody = document.querySelector('#tbl-oic tbody');
+  tbody.innerHTML = sorted.map(r => {
+    const rowCls = r.등급 ? `row-${r.등급}` : '';
+    return `
+    <tr class="${rowCls}">
+      <td class="name" title="${r.그룹명}">${truncate(r.그룹명, 20)}</td>
+      <td>${r.사업부 || '-'}</td>
+      <td>${r.등급 ? `<span class="grade-tag ${r.등급}">${r.등급}</span>` : '-'}</td>
+      <td class="right num">${fmtInt(r.계약횟수)}</td>
+      <td class="right num">${fmtInt(r.국내증정)}</td>
+      <td class="right num">${fmtInt(r.해외증정)}</td>
+      <td class="right num">${fmtInt(r.국내사용)}</td>
+      <td class="right num">${fmtInt(r.해외사용)}</td>
+      <td class="right num">${fmtInt(r.국내잔여)}</td>
+      <td class="right num">${fmtInt(r.해외잔여)}</td>
+      <td class="right">${dataBar(r.국내소진율)}</td>
+      <td class="right">${dataBar(r.해외소진율)}</td>
+      <td class="right num">${fmtInt(r.fixture교환)}</td>
+      <td class="right num">${fmtInt(r.fixture가능)}</td>
+    </tr>`;
+  }).join('');
 }
 
-/* ============================================================
-   RERENDER
-============================================================ */
-function rerender() {
-  renderFilters();
-  renderKpi();
-  renderContractTable();
-  renderOicTable();
+function sumKey(arr, key) {
+  return arr.reduce((s, r) => s + (r[key] || 0), 0);
 }
 
-/* ============================================================
-   TABS
-============================================================ */
-document.querySelectorAll('.tab').forEach(t => {
-  t.onclick = () => {
-    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-    t.classList.add('active');
-    const tab = t.dataset.tab;
-    document.getElementById('tab-contract').classList.toggle('hidden', tab !== 'contract');
-    document.getElementById('tab-oic').classList.toggle('hidden', tab !== 'oic');
-  };
+function renderAll() {
+  renderContract();
+  renderOIC();
+}
+
+/* 이벤트 */
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const target = tab.dataset.panel;
+    document.getElementById('panel-contract').style.display = target === 'contract' ? 'block' : 'none';
+    document.getElementById('panel-oic').style.display = target === 'oic' ? 'block' : 'none';
+  });
 });
 
-document.getElementById('filter-search').addEventListener('input', (e) => {
-  STATE.filters.search = e.target.value.trim();
-  rerender();
+document.getElementById('f-c-div').addEventListener('change', e => { STATE.contractFilter.div = e.target.value; renderContract(); });
+document.getElementById('f-c-grade').addEventListener('change', e => { STATE.contractFilter.grade = e.target.value; renderContract(); });
+document.getElementById('f-c-name').addEventListener('input', e => { STATE.contractFilter.name = e.target.value; renderContract(); });
+
+document.getElementById('f-o-div').addEventListener('change', e => { STATE.oicFilter.div = e.target.value; renderOIC(); });
+document.getElementById('f-o-grade').addEventListener('change', e => { STATE.oicFilter.grade = e.target.value; renderOIC(); });
+document.getElementById('f-o-name').addEventListener('input', e => { STATE.oicFilter.name = e.target.value; renderOIC(); });
+
+document.querySelectorAll('[data-reset]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.reset === 'contract') {
+      STATE.contractFilter = { div: '', grade: '', name: '' };
+      document.getElementById('f-c-div').value = '';
+      document.getElementById('f-c-grade').value = '';
+      document.getElementById('f-c-name').value = '';
+      renderContract();
+    } else {
+      STATE.oicFilter = { div: '', grade: '', name: '' };
+      document.getElementById('f-o-div').value = '';
+      document.getElementById('f-o-grade').value = '';
+      document.getElementById('f-o-name').value = '';
+      renderOIC();
+    }
+  });
 });
 
-/* ============================================================
-   INIT
-============================================================ */
-async function init() {
-  // Try to fetch data.xlsx from same directory
-  try {
-    const res = await fetch('./data.xlsx', { cache: 'no-store' });
-    if (!res.ok) throw new Error('not found');
-    const buf = await res.arrayBuffer();
-    loadFromBuffer(buf);
-    // Get last-modified header
-    const lm = res.headers.get('last-modified');
-    STATE.lastUpdated = lm ? new Date(lm) : new Date();
-  } catch (e) {
-    showUploadGate();
-  }
-}
+document.querySelectorAll('#tbl-contract thead th').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.key;
+    if (STATE.contractSort.key === key) {
+      STATE.contractSort.dir = STATE.contractSort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      STATE.contractSort.key = key;
+      STATE.contractSort.dir = 'desc';
+    }
+    renderContract();
+  });
+});
+document.querySelectorAll('#tbl-oic thead th').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.key;
+    if (STATE.oicSort.key === key) {
+      STATE.oicSort.dir = STATE.oicSort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      STATE.oicSort.key = key;
+      STATE.oicSort.dir = 'desc';
+    }
+    renderOIC();
+  });
+});
 
-function loadFromBuffer(buf) {
-  try {
-    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
-    parseWorkbook(wb);
-    document.getElementById('last-updated').textContent =
-      (STATE.lastUpdated || new Date()).toLocaleString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
-    document.getElementById('gate').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
-    rerender();
-  } catch (err) {
-    document.getElementById('gate-error').textContent = '파일 분석 중 오류: ' + err.message;
-    document.getElementById('gate-error').classList.remove('hidden');
-    showUploadGate();
-  }
-}
-
-function showUploadGate() {
-  document.getElementById('gate-spinner').classList.add('hidden');
-  document.getElementById('gate-msg').textContent = '엑셀 파일을 업로드해주세요.';
-  document.getElementById('gate-upload').classList.remove('hidden');
-}
-
-document.getElementById('file-input').addEventListener('change', async (e) => {
+document.getElementById('file-input').addEventListener('change', async e => {
   const file = e.target.files[0];
   if (!file) return;
-  const buf = await file.arrayBuffer();
-  STATE.lastUpdated = new Date(file.lastModified);
-  loadFromBuffer(buf);
+  try {
+    const buf = await file.arrayBuffer();
+    parseWorkbook(buf);
+    STATE.fileDate = new Date(file.lastModified);
+    showDashboard();
+  } catch (err) {
+    alert('파일을 읽을 수 없습니다: ' + err.message);
+  }
 });
 
-init();
+loadData();
 </script>
+
 </body>
 </html>
