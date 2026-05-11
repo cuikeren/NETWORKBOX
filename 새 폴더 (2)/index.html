@@ -20,7 +20,6 @@
     --brand: #0f172a;
     --accent: #0891b2;
     --good: #16a34a;
-    --good-2: #22c55e;
     --ok: #2563eb;
     --warn: #f59e0b;
     --bad: #dc2626;
@@ -76,38 +75,62 @@
   .panel { display: none; }
   .panel.active { display: block; }
 
-  /* Filters */
+  /* Filters - 강조 스타일 */
+  .filter-wrap {
+    background: linear-gradient(135deg, #ecfeff 0%, #f0fdfa 100%);
+    border: 1.5px solid #67e8f9;
+    border-left: 5px solid var(--accent);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 8px rgba(8, 145, 178, 0.10);
+    position: relative;
+  }
+  .filter-wrap::before {
+    content: '🔍 필터';
+    position: absolute;
+    top: -10px;
+    left: 12px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 10px;
+    letter-spacing: 0.04em;
+    box-shadow: 0 2px 4px rgba(8, 145, 178, 0.25);
+  }
   .filters {
-    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
-    padding: 12px; margin-bottom: 12px;
     display: grid; grid-template-columns: 1fr; gap: 8px;
+    margin-top: 6px;
   }
   .filters label {
-    display: block; font-size: 11px; font-weight: 600; color: var(--ink-3);
+    display: block; font-size: 11px; font-weight: 700; color: #155e75;
     margin-bottom: 4px; letter-spacing: 0.02em; text-transform: uppercase;
   }
   .filters select, .filters input {
     width: 100%; padding: 9px 10px;
-    border: 1px solid var(--line-2); border-radius: 7px;
+    border: 1px solid #67e8f9; border-radius: 7px;
     font-size: 14px; background: #fff; color: var(--ink);
     font-family: inherit; appearance: none; -webkit-appearance: none;
+    box-shadow: 0 1px 2px rgba(8, 145, 178, 0.08);
   }
   .filters select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%230891b2' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 10px center;
     padding-right: 30px;
   }
   .filters input:focus, .filters select:focus {
     outline: none; border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.12);
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.18);
   }
   .reset-btn {
     grid-column: 1 / -1;
-    padding: 8px; background: #f1f5f9; color: var(--ink-2);
-    border: 1px solid var(--line); border-radius: 7px;
-    font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+    padding: 8px; background: #fff; color: var(--accent);
+    border: 1.5px solid var(--accent); border-radius: 7px;
+    font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
   }
-  .reset-btn:hover { background: #e2e8f0; }
+  .reset-btn:hover { background: var(--accent); color: #fff; }
   @media (min-width: 640px) {
     .filters { grid-template-columns: 1fr 1fr 1fr auto; align-items: end; }
     .reset-btn { grid-column: auto; padding: 9px 16px; }
@@ -120,30 +143,29 @@
     gap: 8px;
     margin-bottom: 12px;
   }
-  @media (min-width: 640px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
-  @media (min-width: 1000px) { .kpis { grid-template-columns: repeat(5, 1fr); gap: 10px; } }
+  @media (min-width: 640px) { .kpis { grid-template-columns: repeat(4, 1fr); gap: 10px; } }
   .kpi {
     background: var(--card); border: 1px solid var(--line); border-radius: 10px;
     padding: 12px 14px; position: relative; overflow: hidden;
   }
   .kpi::before {
     content: ''; position: absolute; left: 0; top: 0; bottom: 0;
-    width: 3px; background: var(--accent);
+    width: 4px; background: var(--accent);
   }
   .kpi.good::before { background: var(--good); }
   .kpi.warn::before { background: var(--warn); }
   .kpi.bad::before { background: var(--bad); }
   .kpi .label {
-    font-size: 11px; color: var(--ink-3); font-weight: 600;
+    font-size: 11px; color: var(--ink-3); font-weight: 700;
     margin-bottom: 6px; letter-spacing: 0.02em;
   }
   .kpi .value {
-    font-size: 20px; font-weight: 800; color: var(--ink);
+    font-size: 24px; font-weight: 800; color: var(--ink);
     letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+    line-height: 1.1;
   }
-  @media (min-width: 640px) { .kpi .value { font-size: 22px; } }
-  .kpi .unit { font-size: 12px; font-weight: 600; color: var(--ink-3); margin-left: 2px; }
-  .kpi .sub { font-size: 11px; color: var(--ink-3); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .kpi .unit { font-size: 13px; font-weight: 600; color: var(--ink-3); margin-left: 3px; }
+  .kpi .sub { font-size: 11px; color: var(--ink-3); margin-top: 6px; font-variant-numeric: tabular-nums; }
   .kpi.good .value { color: var(--good); }
   .kpi.warn .value { color: var(--warn); }
   .kpi.bad .value { color: var(--bad); }
@@ -162,6 +184,61 @@
   .gpill.A { background: var(--grade-a); }
   .gpill.B { background: var(--grade-b); }
   .gpill.C { background: var(--grade-c); }
+
+  /* 사업부별 계약 건수 그리드 */
+  .div-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    padding: 12px 14px;
+  }
+  @media (min-width: 500px) { .div-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 800px) { .div-grid { grid-template-columns: repeat(4, 1fr); } }
+  @media (min-width: 1100px) { .div-grid { grid-template-columns: repeat(6, 1fr); } }
+  .div-card {
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 9px 11px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+  }
+  .div-card:hover {
+    background: #ecfeff;
+    border-color: #67e8f9;
+  }
+  .div-card.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 2px 6px rgba(8, 145, 178, 0.25);
+  }
+  .div-card.active .dname, .div-card.active .dcount,
+  .div-card.active .dcount-unit { color: #fff; }
+  .div-card .dname {
+    font-size: 12.5px;
+    color: var(--ink-2);
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .div-card .dcount {
+    font-size: 16px;
+    color: var(--ink);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    margin-left: 6px;
+  }
+  .div-card .dcount-unit {
+    font-size: 10px;
+    color: var(--ink-3);
+    font-weight: 600;
+    margin-left: 1px;
+  }
 
   /* Section + table */
   .section {
@@ -200,7 +277,6 @@
     white-space: nowrap;
   }
   tbody tr:hover td { background: #f8fafc; }
-  /* 등급별 좌측 컬러 바 */
   tbody tr td:first-child { border-left: 3px solid transparent; }
   tbody tr.row-A td:first-child { border-left-color: var(--grade-a); }
   tbody tr.row-B td:first-child { border-left-color: var(--grade-b); }
@@ -209,7 +285,20 @@
   td.right { text-align: right; font-variant-numeric: tabular-nums; }
   td.name { font-weight: 600; color: var(--ink); }
 
-  /* 등급 태그 */
+  /* 기갱신 마크 */
+  .renew-mark {
+    display: inline-block;
+    margin-left: 5px;
+    padding: 1px 5px;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 9.5px;
+    font-weight: 700;
+    border-radius: 3px;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+  }
+
   .grade-tag {
     display: inline-block; min-width: 22px; height: 22px;
     line-height: 22px; padding: 0 6px;
@@ -221,7 +310,7 @@
   .grade-tag.B { background: var(--grade-b); }
   .grade-tag.C { background: var(--grade-c); }
 
-  /* 데이터 바 셀 - 엑셀 데이터바 스타일 */
+  /* 데이터 바 */
   .databar {
     position: relative;
     display: inline-block;
@@ -256,7 +345,6 @@
 
   .date-cell { color: var(--ink-3); font-variant-numeric: tabular-nums; font-size: 12px; }
 
-  /* Loader */
   .state { text-align: center; padding: 40px 20px; color: var(--ink-3); font-size: 13px; }
   .state .spin {
     display: inline-block; width: 22px; height: 22px;
@@ -274,6 +362,17 @@
   .state input[type="file"] { display: none; }
 
   footer { text-align: center; color: var(--ink-3); font-size: 11px; padding: 20px 12px 32px; }
+
+  /* OIC KPI 5개 */
+  .kpis-oic {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  @media (min-width: 640px) { .kpis-oic { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 1000px) { .kpis-oic { grid-template-columns: repeat(5, 1fr); gap: 10px; } }
+  .kpis-oic .kpi .value { font-size: 22px; }
 </style>
 </head>
 <body>
@@ -309,28 +408,38 @@
 
   <!-- 계약이행율 패널 -->
   <div id="panel-contract" class="panel active" style="display:none">
-    <div class="filters">
-      <div>
-        <label>사업부</label>
-        <select id="f-c-div"><option value="">전체 사업부</option></select>
+    <div class="filter-wrap">
+      <div class="filters">
+        <div>
+          <label>사업부</label>
+          <select id="f-c-div"><option value="">전체 사업부</option></select>
+        </div>
+        <div>
+          <label>등급</label>
+          <select id="f-c-grade">
+            <option value="">전체 등급</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+          </select>
+        </div>
+        <div>
+          <label>그룹명 검색</label>
+          <input type="text" id="f-c-name" placeholder="고객/그룹명 입력" />
+        </div>
+        <button class="reset-btn" data-reset="contract">초기화</button>
       </div>
-      <div>
-        <label>등급</label>
-        <select id="f-c-grade">
-          <option value="">전체 등급</option>
-          <option value="A">A</option>
-          <option value="B">B</option>
-          <option value="C">C</option>
-        </select>
-      </div>
-      <div>
-        <label>그룹명 검색</label>
-        <input type="text" id="f-c-name" placeholder="고객/그룹명 입력" />
-      </div>
-      <button class="reset-btn" data-reset="contract">초기화</button>
     </div>
 
     <div class="kpis" id="kpi-contract"></div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>사업부별 계약 건수</h2>
+        <span class="count" id="div-total-c"></span>
+      </div>
+      <div class="div-grid" id="div-grid-c"></div>
+    </div>
 
     <div class="section">
       <div class="section-head"><h2>고객별 상세</h2><span class="count" id="row-count-c"></span></div>
@@ -358,28 +467,30 @@
 
   <!-- OIC 패널 -->
   <div id="panel-oic" class="panel" style="display:none">
-    <div class="filters">
-      <div>
-        <label>사업부</label>
-        <select id="f-o-div"><option value="">전체 사업부</option></select>
+    <div class="filter-wrap">
+      <div class="filters">
+        <div>
+          <label>사업부</label>
+          <select id="f-o-div"><option value="">전체 사업부</option></select>
+        </div>
+        <div>
+          <label>등급</label>
+          <select id="f-o-grade">
+            <option value="">전체 등급</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+          </select>
+        </div>
+        <div>
+          <label>그룹명 검색</label>
+          <input type="text" id="f-o-name" placeholder="고객/그룹명 입력" />
+        </div>
+        <button class="reset-btn" data-reset="oic">초기화</button>
       </div>
-      <div>
-        <label>등급</label>
-        <select id="f-o-grade">
-          <option value="">전체 등급</option>
-          <option value="A">A</option>
-          <option value="B">B</option>
-          <option value="C">C</option>
-        </select>
-      </div>
-      <div>
-        <label>그룹명 검색</label>
-        <input type="text" id="f-o-name" placeholder="고객/그룹명 입력" />
-      </div>
-      <button class="reset-btn" data-reset="oic">초기화</button>
     </div>
 
-    <div class="kpis" id="kpi-oic"></div>
+    <div class="kpis-oic" id="kpi-oic"></div>
 
     <div class="section">
       <div class="section-head"><h2>고객별 OIC 상세</h2><span class="count" id="row-count-o"></span></div>
@@ -420,20 +531,13 @@ const STATE = {
   oicSpecial: [],
   contractFilter: { div: '', grade: '', name: '' },
   oicFilter: { div: '', grade: '', name: '' },
-  contractSort: { key: '매출액', dir: 'desc' },
+  contractSort: { key: '계약달성율', dir: 'asc' }, // 등급하향조정 먼저 보이게
   oicSort: { key: '국내사용', dir: 'desc' },
   fileDate: null,
 };
 
 const fmtInt = n => (n == null || isNaN(n)) ? '-' : Math.round(n).toLocaleString('ko-KR');
 const fmtMoney = n => (n == null || isNaN(n)) ? '-' : Math.round(n).toLocaleString('ko-KR');
-const fmtMoneyShort = n => {
-  if (n == null || isNaN(n)) return '-';
-  const a = Math.abs(n);
-  if (a >= 1e8) return (n/1e8).toFixed(2).replace(/\.?0+$/, '') + '억';
-  if (a >= 1e4) return Math.round(n/1e4).toLocaleString('ko-KR') + '만';
-  return Math.round(n).toLocaleString('ko-KR');
-};
 const fmtPct = n => (n == null || isNaN(n)) ? '-' : (n*100).toFixed(1) + '%';
 const fmtDate = d => {
   if (!d) return '-';
@@ -446,18 +550,32 @@ const fmtDate = d => {
   return String(d);
 };
 
-/* 데이터 막대 - 비율 → CSS 변수 + 색상 레벨 */
 function dataBar(rate) {
-  if (rate == null || isNaN(rate)) {
-    return `<span class="databar lvl-none">-</span>`;
-  }
-  const pct = Math.min(Math.max(rate, 0), 1) * 100; // 0~100 cap
+  if (rate == null || isNaN(rate)) return `<span class="databar lvl-none">-</span>`;
+  const pct = Math.min(Math.max(rate, 0), 1) * 100;
   let lvl;
   if (rate >= 1) lvl = 'good';
   else if (rate >= 0.7) lvl = 'ok';
   else if (rate >= 0.4) lvl = 'warn';
   else lvl = 'bad';
   return `<span class="databar lvl-${lvl}" style="--pct:${pct.toFixed(1)}%;">${(rate*100).toFixed(1)}%</span>`;
+}
+
+/* 3구간 분류 (잔여개월수 무시, 0~1개월 기준 적용) */
+function getSegment(rate) {
+  if (rate == null || isNaN(rate)) return null;
+  if (rate >= 1.0) return '안정';
+  if (rate >= 0.6) return '매출독려';
+  return '하향조정';
+}
+
+/* 기갱신 판정: 계약횟수 ≥ 2 OR 그룹명 끝 숫자 ≥ 2 */
+function isRenewed(row) {
+  if (row.계약횟수 != null && row.계약횟수 >= 2) return true;
+  const name = row.그룹명 || '';
+  const m = name.match(/(\d+)\s*$/);
+  if (m && parseInt(m[1], 10) >= 2) return true;
+  return false;
 }
 
 async function loadData() {
@@ -478,7 +596,6 @@ async function loadData() {
 function parseWorkbook(buf) {
   const wb = XLSX.read(buf, { type: 'array', cellDates: true });
 
-  // 계약이행율
   const wsC = wb.Sheets['계약이행율'];
   if (wsC) {
     const rows = XLSX.utils.sheet_to_json(wsC, { header: 1, defval: null });
@@ -505,7 +622,6 @@ function parseWorkbook(buf) {
     STATE.contractAll = data;
   }
 
-  // OIC
   const wsO = wb.Sheets['OIC'];
   if (wsO) {
     const rows = XLSX.utils.sheet_to_json(wsO, { header: 1, defval: null });
@@ -611,41 +727,78 @@ function renderContract() {
   const data = filteredContract();
   document.getElementById('row-count-c').textContent = `${data.length}개 계약`;
 
-  // KPI 써머리
-  const sumRev = data.reduce((s,r) => s + (r.매출액 || 0), 0);
-  const sumPay = data.reduce((s,r) => s + (r.수금액 || 0), 0);
-  const sumCon = data.reduce((s,r) => s + (r.계약액 || 0), 0);
-  const collectRate = sumCon > 0 ? sumPay / sumCon : null;
-  const achieveRate = sumCon > 0 ? sumRev / sumCon : null;
+  /* KPI - 계약 건수 + 3구간 분류 */
+  const cntStable = data.filter(r => getSegment(r.계약달성율) === '안정').length;
+  const cntPush = data.filter(r => getSegment(r.계약달성율) === '매출독려').length;
+  const cntDown = data.filter(r => getSegment(r.계약달성율) === '하향조정').length;
+
+  const renStable = data.filter(r => getSegment(r.계약달성율) === '안정' && isRenewed(r)).length;
+  const renPush = data.filter(r => getSegment(r.계약달성율) === '매출독려' && isRenewed(r)).length;
+  const renDown = data.filter(r => getSegment(r.계약달성율) === '하향조정' && isRenewed(r)).length;
 
   const cntA = data.filter(r => r.등급 === 'A').length;
   const cntB = data.filter(r => r.등급 === 'B').length;
   const cntC = data.filter(r => r.등급 === 'C').length;
-
-  const collectCls = collectRate >= 1 ? 'good' : collectRate >= 0.7 ? '' : collectRate >= 0.4 ? 'warn' : 'bad';
-  const achieveCls = achieveRate >= 1 ? 'good' : achieveRate >= 0.7 ? '' : achieveRate >= 0.4 ? 'warn' : 'bad';
+  const totalRenewed = data.filter(isRenewed).length;
 
   document.getElementById('kpi-contract').innerHTML = `
-    <div class="kpi"><div class="label">계약 건수</div>
+    <div class="kpi"><div class="label">총 계약 건수</div>
       <div class="value num">${data.length}<span class="unit">건</span></div>
       <div class="sub">
         <span class="gpill A">A ${cntA}</span><span class="gpill B">B ${cntB}</span><span class="gpill C">C ${cntC}</span>
+        · 기갱신 ${totalRenewed}건
       </div></div>
-    <div class="kpi"><div class="label">총 매출액</div>
-      <div class="value num">${fmtMoneyShort(sumRev)}<span class="unit">¥</span></div>
-      <div class="sub">${fmtMoney(sumRev)} CNY</div></div>
-    <div class="kpi"><div class="label">총 수금액</div>
-      <div class="value num">${fmtMoneyShort(sumPay)}<span class="unit">¥</span></div>
-      <div class="sub">${fmtMoney(sumPay)} CNY</div></div>
-    <div class="kpi ${collectCls}"><div class="label">수금율 (수금 / 계약)</div>
-      <div class="value num">${fmtPct(collectRate)}</div>
-      <div class="sub">계약 ${fmtMoneyShort(sumCon)} ¥</div></div>
-    <div class="kpi ${achieveCls}"><div class="label">계약달성율 (매출 / 계약)</div>
-      <div class="value num">${fmtPct(achieveRate)}</div>
-      <div class="sub">계약 ${fmtMoneyShort(sumCon)} ¥</div></div>
+    <div class="kpi good"><div class="label">안정 (달성율 ≥ 100%)</div>
+      <div class="value num">${cntStable}<span class="unit">건</span></div>
+      <div class="sub">그 중 기갱신 ${renStable}건 · 신규 ${cntStable - renStable}건</div></div>
+    <div class="kpi warn"><div class="label">매출독려 (60% ~ 99%)</div>
+      <div class="value num">${cntPush}<span class="unit">건</span></div>
+      <div class="sub">그 중 기갱신 ${renPush}건 · 신규 ${cntPush - renPush}건</div></div>
+    <div class="kpi bad"><div class="label">등급하향조정 (&lt; 60%)</div>
+      <div class="value num">${cntDown}<span class="unit">건</span></div>
+      <div class="sub">그 중 기갱신 ${renDown}건 · 신규 ${cntDown - renDown}건</div></div>
   `;
 
-  // 테이블
+  /* 사업부별 계약 건수 (사업부 필터는 무시, 등급/그룹명만 반영) */
+  const f = STATE.contractFilter;
+  const dataForDivCount = STATE.contractAll.filter(r => {
+    if (f.grade && r.등급 !== f.grade) return false;
+    if (f.name && !(r.그룹명 || '').toLowerCase().includes(f.name.toLowerCase())) return false;
+    return true;
+  });
+  const divCounts = {};
+  dataForDivCount.forEach(r => {
+    divCounts[r.사업부] = (divCounts[r.사업부] || 0) + 1;
+  });
+  const sortedDivs = Object.entries(divCounts).sort((a,b) => b[1] - a[1]);
+  const totalDivs = sortedDivs.length;
+  const totalCount = sortedDivs.reduce((s, [, c]) => s + c, 0);
+  document.getElementById('div-total-c').textContent = `${totalDivs}개 사업부 · 총 ${totalCount}건`;
+
+  document.getElementById('div-grid-c').innerHTML = sortedDivs.map(([name, count]) => {
+    const active = f.div === name ? 'active' : '';
+    return `<div class="div-card ${active}" data-div="${name}">
+      <span class="dname" title="${name}">${name}</span>
+      <span><span class="dcount num">${count}</span><span class="dcount-unit">건</span></span>
+    </div>`;
+  }).join('');
+
+  /* 사업부 카드 클릭 → 필터 토글 */
+  document.querySelectorAll('#div-grid-c .div-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const name = card.dataset.div;
+      if (STATE.contractFilter.div === name) {
+        STATE.contractFilter.div = '';
+        document.getElementById('f-c-div').value = '';
+      } else {
+        STATE.contractFilter.div = name;
+        document.getElementById('f-c-div').value = name;
+      }
+      renderContract();
+    });
+  });
+
+  /* 테이블 */
   document.querySelectorAll('#tbl-contract thead th').forEach(th => {
     th.classList.remove('sorted', 'asc', 'desc');
     if (th.dataset.key === STATE.contractSort.key) {
@@ -657,9 +810,10 @@ function renderContract() {
   const tbody = document.querySelector('#tbl-contract tbody');
   tbody.innerHTML = sorted.map(r => {
     const rowCls = r.등급 ? `row-${r.등급}` : '';
+    const renewMark = isRenewed(r) ? '<span class="renew-mark">기갱신</span>' : '';
     return `
     <tr class="${rowCls}">
-      <td class="name" title="${r.그룹명}">${truncate(r.그룹명, 20)}</td>
+      <td class="name" title="${r.그룹명}">${truncate(r.그룹명, 20)}${renewMark}</td>
       <td>${r.사업부}</td>
       <td>${r.등급 ? `<span class="grade-tag ${r.등급}">${r.등급}</span>` : '-'}</td>
       <td class="date-cell">${fmtDate(r.유효기간)}</td>
@@ -698,7 +852,6 @@ function renderOIC() {
   const data = filteredOIC();
   document.getElementById('row-count-o').textContent = `${data.length}개 고객`;
 
-  // 합계 - 필터 없으면 TOTAL 행 사용 (공립사용/시장부사용 포함된 회사 전체 수치)
   const f = STATE.oicFilter;
   const isFiltered = f.div || f.grade || f.name;
 
@@ -750,7 +903,6 @@ function renderOIC() {
       <div class="sub">사용 / 증정가능</div></div>
   `;
 
-  // 테이블
   document.querySelectorAll('#tbl-oic thead th').forEach(th => {
     th.classList.remove('sorted', 'asc', 'desc');
     if (th.dataset.key === STATE.oicSort.key) {
